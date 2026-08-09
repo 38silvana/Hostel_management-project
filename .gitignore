@@ -1,0 +1,17 @@
+#python
+_pycache_/
+*.pyc
+venv/
+.venv/
+backend/venv/
+#Node
+node_modules/
+.next/
+frontend/.next/
+frontend/out/
+#Testings
+.pytest_cache/
+#Enviornment
+.env
+#Database
+*.db
