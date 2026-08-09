@@ -1,1 +1,1 @@
-gunicorn app:app
+web: uvicorn app.main:app --$PORT
