@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +19,15 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        # Prioritize explicit DATABASE_URL environment variable (Render, Supabase, Neon, etc.)
+        env_url = os.getenv("DATABASE_URL")
+        if env_url:
+            # Fix SQLAlchemy dialect compatibility for Render postgres:// URLs
+            if env_url.startswith("postgres://"):
+                env_url = env_url.replace("postgres://", "postgresql://", 1)
+            return env_url
+
+        # Fallback to individual connection parameters
         encoded_password = quote_plus(self.POSTGRES_PASSWORD)
         return f"postgresql://{self.POSTGRES_USER}:{encoded_password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
