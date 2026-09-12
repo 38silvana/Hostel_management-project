@@ -64,8 +64,8 @@ export default function LoginPage() {
       <div className="auth-card">
         <div className="auth-header">
           <Building2 className="auth-logo" />
-          <h1 className="auth-title">Hostel Management</h1>
-          <p className="auth-subtitle">Next.js + FastAPI Portal</p>
+          <h1 className="auth-title">Shanthibavanam</h1>
+          <p className="auth-subtitle">Hostel Management & Meal Tracking Portal</p>
         </div>
 
         <div className="auth-tabs">

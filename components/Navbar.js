@@ -17,8 +17,8 @@ export default function Navbar({ activeTab, setActiveTab }) {
         <div className="navbar-brand">
           <Building2 className="icon-brand" />
           <div>
-            <span className="brand-title">Hostel Management</span>
-            <span className="brand-subtitle">Meal Tracking System (Next.js)</span>
+            <span className="brand-title">Shanthibavanam</span>
+            <span className="brand-subtitle">Hostel Management & Meal Tracking</span>
           </div>
         </div>
 

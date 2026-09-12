@@ -52,7 +52,7 @@ export default function AdminPage() {
               <div className="section-header">
                 <div>
                   <h2>Administrator Control Center</h2>
-                  <p className="subtitle">Welcome to the Next.js Hostel Management & Meal Tracking Dashboard.</p>
+                  <p className="subtitle">Welcome to the Shanthibavanam Hostel Management & Meal Tracking Dashboard.</p>
                 </div>
               </div>
 

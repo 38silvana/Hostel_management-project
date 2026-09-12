@@ -2,8 +2,8 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata = {
-  title: 'Hostel Management & Meal Tracking System',
-  description: 'FastAPI + Next.js Hostel Management Web Application',
+  title: 'Shanthibavanam - Hostel Management & Meal Tracking System',
+  description: 'Shanthibavanam Hostel Management & Meal Tracking Web Application',
 };
 
 export default function RootLayout({ children }) {

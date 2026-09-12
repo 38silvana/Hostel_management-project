@@ -175,7 +175,7 @@ export default function StudentManagement() {
       <div className="section-header">
         <div>
           <h2>Student Records Management</h2>
-          <p className="subtitle">View, search, register, update, and manage hostel students.</p>
+          <p className="subtitle">View, search, register, update, and manage Shanthibavanam hostel students.</p>
         </div>
         <button className="btn-primary" onClick={() => { resetForm(); setShowAddModal(true); }}>
           <UserPlus className="icon-sm" /> Add New Student
