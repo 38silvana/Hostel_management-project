@@ -82,70 +82,95 @@ async function seed() {
 
   const existingUsers = userData?.users || [];
   let createdCount = 0;
-  let skippedCount = 0;
+  let backfilledCount = 0;
+  let existingCount = 0;
 
   for (const resident of testResidents) {
     const internalEmail = `${resident.mobile}@shanthibavanam.local`;
-    const alreadyExists = existingUsers.some(
+    const existingUser = existingUsers.find(
       (u) => u.email?.toLowerCase() === internalEmail.toLowerCase() || u.user_metadata?.mobile === resident.mobile
     );
 
-    if (alreadyExists) {
-      console.log(`- [SKIP] ${resident.full_name} (${resident.mobile}) already exists.`);
-      skippedCount++;
-      continue;
-    }
+    let userId = existingUser?.id;
 
     try {
-      // 1. Create Auth user
-      const { data: newAuth, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: internalEmail,
-        password: testPassword,
-        email_confirm: true,
-        user_metadata: {
-          role: 'student',
-          approval_status: 'approved',
-          mobile: resident.mobile,
-          full_name: resident.full_name,
-          room_number: resident.room_number,
-        },
-      });
+      if (!userId) {
+        // 1. Create Auth user if missing
+        const { data: newAuth, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: internalEmail,
+          password: testPassword,
+          email_confirm: true,
+          user_metadata: {
+            role: 'student',
+            approval_status: 'approved',
+            mobile: resident.mobile,
+            full_name: resident.full_name,
+            room_number: resident.room_number,
+          },
+        });
 
-      if (authError || !newAuth?.user) {
-        console.error(`- [ERROR] Failed to create auth user for ${resident.full_name}:`, authError?.message);
-        continue;
+        if (authError || !newAuth?.user) {
+          console.error(`- [ERROR] Failed to create auth user for ${resident.full_name}:`, authError?.message);
+          continue;
+        }
+
+        userId = newAuth.user.id;
+        console.log(`+ [AUTH CREATED] ${resident.full_name} (${resident.mobile})`);
+        createdCount++;
+      } else {
+        console.log(`- [AUTH EXISTS] ${resident.full_name} (${resident.mobile}) -> User ID: ${userId}`);
       }
 
-      const userId = newAuth.user.id;
-
-      // 2. Insert into profiles
-      await supabaseAdmin.from('profiles').upsert({
+      // 2. Ensure profiles record exists
+      const { error: profError } = await supabaseAdmin.from('profiles').upsert({
         id: userId,
         full_name: resident.full_name,
         role: 'student',
       });
 
-      // 3. Insert into student_profiles
-      await supabaseAdmin.from('student_profiles').upsert({
-        user_id: userId,
-        full_name: resident.full_name,
-        room_number: resident.room_number,
-        personal_contact: resident.mobile,
-        permanent_address: 'Resident Hostel Block',
-        emergency_contact: '9999999999',
-        fee_status: 'paid',
-        approval_status: 'approved',
-      });
+      if (profError) {
+        console.error(`  -> [ERROR] Failed to upsert profiles for ${resident.full_name}:`, profError.message);
+      }
 
-      console.log(`+ [CREATED] ${resident.full_name} | Mobile: ${resident.mobile} | Room: ${resident.room_number}`);
-      createdCount++;
+      // 3. Ensure student_profiles record exists (WITHOUT non-existent approval_status column)
+      const { data: existingSp, error: checkSpErr } = await supabaseAdmin
+        .from('student_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existingSp) {
+        console.log(`  -> student_profiles already present (ID: ${existingSp.id})`);
+        existingCount++;
+      } else {
+        const { data: newSp, error: spError } = await supabaseAdmin
+          .from('student_profiles')
+          .insert({
+            user_id: userId,
+            full_name: resident.full_name,
+            room_number: resident.room_number,
+            personal_contact: resident.mobile,
+            permanent_address: 'Resident Hostel Block',
+            emergency_contact: '9999999999',
+            fee_status: 'paid',
+          })
+          .select()
+          .single();
+
+        if (spError) {
+          console.error(`  -> [ERROR] student_profiles insert failed for ${resident.full_name}:`, spError.message);
+        } else {
+          console.log(`  -> [BACKFILLED] student_profiles row created (ID: ${newSp.id}) for Room ${resident.room_number}`);
+          backfilledCount++;
+        }
+      }
     } catch (err) {
-      console.error(`- [EXCEPTION] Error seeding ${resident.full_name}:`, err.message);
+      console.error(`- [EXCEPTION] Error processing ${resident.full_name}:`, err.message);
     }
   }
 
-  console.log(`\nSeeding completed: ${createdCount} created, ${skippedCount} already existing.`);
-  console.log('Login credentials: Use mobile number (e.g. 9800000001) and your provided test password.');
+  console.log(`\nOperation completed: ${createdCount} Auth users created, ${backfilledCount} student_profiles backfilled, ${existingCount} already complete.`);
+  console.log('Login credentials: Use mobile number (e.g. 9800000001) and your test password.');
 }
 
 seed().catch((err) => {
