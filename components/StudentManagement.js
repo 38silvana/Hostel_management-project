@@ -1,36 +1,34 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { apiFetch, API_BASE_URL } from '@/lib/api';
-import { Search, UserPlus, Upload, Edit, Trash2, Home, CheckCircle, AlertCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { Search, UserPlus, Edit, Trash2, Home, CheckCircle, AlertCircle, Phone, Clock, UserCheck, Shield } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function StudentManagement() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'pending' | 'approved'
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
     full_name: '',
-    room_number: '',
-    permanent_address: '',
     personal_contact: '',
+    room_number: '',
+    password: '',
+    permanent_address: '',
     emergency_contact: '',
-    fee_status: 'pending'
+    fee_status: 'pending',
   });
 
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -42,11 +40,28 @@ export default function StudentManagement() {
       setLoading(true);
       const query = search ? `?search=${encodeURIComponent(search)}` : '';
       const data = await apiFetch(`/students${query}`);
-      setStudents(data);
+      setStudents(data || []);
     } catch (err) {
-      setError(err.message || 'Failed to fetch student list.');
+      setError(err.message || 'Failed to fetch resident list.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApprove = async (student) => {
+    setActionLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await apiFetch(`/students/${student.id}/approve`, {
+        method: 'POST',
+      });
+      setSuccess(res.message || `Resident "${student.full_name}" has been approved!`);
+      fetchStudents();
+    } catch (err) {
+      setError(err.message || 'Failed to approve resident.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -57,14 +72,14 @@ export default function StudentManagement() {
     try {
       await apiFetch('/students', {
         method: 'POST',
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
-      setSuccess('Student created successfully!');
+      setSuccess('Resident account created and approved successfully!');
       setShowAddModal(false);
       resetForm();
       fetchStudents();
     } catch (err) {
-      setError(err.message || 'Failed to create student.');
+      setError(err.message || 'Failed to create resident.');
     } finally {
       setActionLoading(false);
     }
@@ -85,100 +100,74 @@ export default function StudentManagement() {
           permanent_address: formData.permanent_address,
           personal_contact: formData.personal_contact,
           emergency_contact: formData.emergency_contact,
-          fee_status: formData.fee_status
-        })
+          fee_status: formData.fee_status,
+        }),
       });
-      setSuccess('Student updated successfully!');
+      setSuccess('Resident details updated successfully!');
       setShowEditModal(false);
       resetForm();
       fetchStudents();
     } catch (err) {
-      setError(err.message || 'Failed to update student.');
+      setError(err.message || 'Failed to update resident.');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDelete = async (studentId, studentName) => {
-    if (!window.confirm(`Are you sure you want to delete student "${studentName}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete resident "${studentName}"? This will permanently remove their profile and login.`)) return;
     try {
       await apiFetch(`/students/${studentId}`, { method: 'DELETE' });
-      setSuccess(`Student "${studentName}" deleted.`);
+      setSuccess(`Resident "${studentName}" deleted.`);
       fetchStudents();
     } catch (err) {
-      setError(err.message || 'Failed to delete student.');
-    }
-  };
-
-  const handleUploadPhoto = async (e) => {
-    e.preventDefault();
-    if (!selectedStudent || !photoFile) return;
-    setActionLoading(true);
-    setError(null);
-
-    const fd = new FormData();
-    fd.append('file', photoFile);
-
-    try {
-      await apiFetch(`/students/${selectedStudent.id}/upload-photo`, {
-        method: 'POST',
-        body: fd
-      });
-      setSuccess('Photo uploaded successfully!');
-      setShowPhotoModal(false);
-      setPhotoFile(null);
-      fetchStudents();
-    } catch (err) {
-      setError(err.message || 'Failed to upload photo.');
-    } finally {
-      setActionLoading(false);
+      setError(err.message || 'Failed to delete resident.');
     }
   };
 
   const openEditModal = (student) => {
     setSelectedStudent(student);
     setFormData({
-      email: student.email || '',
-      password: '',
-      full_name: student.full_name,
-      room_number: student.room_number,
-      permanent_address: student.permanent_address,
-      personal_contact: student.personal_contact,
-      emergency_contact: student.emergency_contact,
-      fee_status: student.fee_status
+      full_name: student.full_name || '',
+      room_number: student.room_number || '',
+      personal_contact: student.personal_contact || '',
+      emergency_contact: student.emergency_contact || '',
+      permanent_address: student.permanent_address || '',
+      fee_status: student.fee_status || 'pending',
     });
     setShowEditModal(true);
   };
 
-  const openPhotoModal = (student) => {
-    setSelectedStudent(student);
-    setPhotoFile(null);
-    setShowPhotoModal(true);
-  };
-
   const resetForm = () => {
     setFormData({
-      email: '',
-      password: '',
       full_name: '',
-      room_number: '',
-      permanent_address: '',
       personal_contact: '',
+      room_number: '',
+      password: '',
+      permanent_address: '',
       emergency_contact: '',
-      fee_status: 'pending'
+      fee_status: 'pending',
     });
     setSelectedStudent(null);
   };
+
+  const pendingCount = students.filter((s) => s.approval_status === 'pending').length;
+
+  const filteredStudents = students.filter((s) => {
+    if (filterTab === 'pending') return s.approval_status === 'pending';
+    if (filterTab === 'approved') return s.approval_status === 'approved';
+    return true;
+  });
 
   return (
     <div className="section-container">
       <div className="section-header">
         <div>
-          <h2>Student Records Management</h2>
-          <p className="subtitle">View, search, register, update, and manage Shanthibavanam hostel students.</p>
+          <h2>Resident Management & Approvals</h2>
+          <p className="subtitle">Manage Shanthibavanam hostel residents, review pending signups, and maintain room allocations.</p>
         </div>
         <button className="btn-primary" onClick={() => { resetForm(); setShowAddModal(true); }}>
-          <UserPlus className="icon-sm" /> Add New Student
+          <UserPlus className="icon-sm" /> Add Resident Directly
         </button>
       </div>
 
@@ -196,80 +185,129 @@ export default function StudentManagement() {
         </div>
       )}
 
-      <div className="search-bar">
-        <Search className="search-icon" />
-        <input
-          type="text"
-          placeholder="Search students by name, email, or room number..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Tabs & Search */}
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px' }}>
+        <div className="auth-tabs" style={{ margin: 0 }}>
+          <button
+            className={`tab-btn ${filterTab === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterTab('all')}
+          >
+            All Residents ({students.length})
+          </button>
+          <button
+            className={`tab-btn ${filterTab === 'pending' ? 'active' : ''}`}
+            onClick={() => setFilterTab('pending')}
+            style={{ position: 'relative' }}
+          >
+            Pending Approvals
+            {pendingCount > 0 && (
+              <span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '10px', padding: '2px 8px', fontSize: '12px' }}>
+                {pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            className={`tab-btn ${filterTab === 'approved' ? 'active' : ''}`}
+            onClick={() => setFilterTab('approved')}
+          >
+            Approved ({students.length - pendingCount})
+          </button>
+        </div>
+
+        <div className="search-bar" style={{ minWidth: '280px', margin: 0 }}>
+          <Search className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search by name, room, mobile..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       {loading ? (
-        <LoadingSpinner label="Loading student directory..." />
+        <LoadingSpinner label="Loading resident records..." />
       ) : (
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Student Name</th>
-                <th>Room</th>
-                <th>Email / Contact</th>
-                <th>Fee Status</th>
+                <th>Resident Name</th>
+                <th>Room No</th>
+                <th>Mobile Number</th>
+                <th>Account Status</th>
+                <th>Emergency / Address</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {students.length === 0 ? (
+              {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center text-muted">
-                    No student records found matching "{search}"
+                  <td colSpan="6" className="text-center text-muted" style={{ textAlign: 'center', padding: '32px' }}>
+                    {filterTab === 'pending'
+                      ? 'No pending registration requests. All resident signups are up to date!'
+                      : 'No resident records found.'}
                   </td>
                 </tr>
               ) : (
-                students.map((s) => (
-                  <tr key={s.id}>
+                filteredStudents.map((s) => (
+                  <tr key={s.id} style={{ background: s.approval_status === 'pending' ? '#fffdf7' : 'inherit' }}>
                     <td>
                       <div className="user-cell">
-                        {s.profile_photo ? (
-                          <img
-                            src={s.profile_photo.startsWith('http') ? s.profile_photo : `${API_BASE_URL}${s.profile_photo}`}
-                            alt={s.full_name}
-                            className="cell-avatar"
-                          />
-                        ) : (
-                          <div className="cell-avatar-placeholder">{s.full_name[0]}</div>
-                        )}
+                        <div className="cell-avatar-placeholder" style={{ background: s.approval_status === 'pending' ? '#f59e0b' : '#4f46e5' }}>
+                          {s.full_name ? s.full_name[0].toUpperCase() : 'R'}
+                        </div>
                         <div>
-                          <span className="font-semibold">{s.full_name}</span>
-                          <span className="text-sm text-muted block">{s.permanent_address}</span>
+                          <span className="font-semibold block">{s.full_name}</span>
+                          <span className="text-xs text-muted">ID #{s.id}</span>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <span className="badge badge-outline"><Home className="icon-xs inline" /> {s.room_number}</span>
-                    </td>
-                    <td>
-                      <div className="text-sm">
-                        <div>{s.email}</div>
-                        <div className="text-muted">{s.personal_contact}</div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${s.fee_status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
-                        {s.fee_status.toUpperCase()}
+                      <span className="badge badge-outline">
+                        <Home className="icon-xs inline mr-1" /> Room {s.room_number}
                       </span>
                     </td>
                     <td>
-                      <div className="action-buttons">
-                        <button className="btn-icon" title="Upload Photo" onClick={() => openPhotoModal(s)}>
-                          <Upload className="icon-xs" />
-                        </button>
-                        <button className="btn-icon" title="Edit Profile" onClick={() => openEditModal(s)}>
+                      <div className="text-sm">
+                        <Phone className="icon-xs inline mr-1 text-muted" />
+                        <strong>{s.personal_contact || 'N/A'}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      {s.approval_status === 'pending' ? (
+                        <span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                          <Clock className="icon-xs inline mr-1" /> PENDING APPROVAL
+                        </span>
+                      ) : (
+                        <span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
+                          <UserCheck className="icon-xs inline mr-1" /> APPROVED
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="text-xs text-muted">
+                        <div>Emergency: {s.emergency_contact || 'N/A'}</div>
+                        <div>Address: {s.permanent_address || 'N/A'}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="action-buttons" style={{ display: 'flex', gap: '6px' }}>
+                        {s.approval_status === 'pending' && (
+                          <button
+                            className="btn-primary"
+                            style={{ padding: '4px 10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Approve Resident"
+                            onClick={() => handleApprove(s)}
+                            disabled={actionLoading}
+                          >
+                            <CheckCircle className="icon-xs" /> Approve
+                          </button>
+                        )}
+                        <button className="btn-icon" title="Edit Resident" onClick={() => openEditModal(s)}>
                           <Edit className="icon-xs" />
                         </button>
-                        <button className="btn-icon danger" title="Delete Student" onClick={() => handleDelete(s.id, s.full_name)}>
+                        <button className="btn-icon danger" title="Delete Resident" onClick={() => handleDelete(s.id, s.full_name)}>
                           <Trash2 className="icon-xs" />
                         </button>
                       </div>
@@ -286,58 +324,82 @@ export default function StudentManagement() {
       {showAddModal && (
         <div className="modal-overlay">
           <div className="modal-card">
-            <h3>Add New Student</h3>
+            <h3>Add New Resident (Direct Admin Entry)</h3>
+            <p className="text-xs text-muted mb-4">Resident added by Admin will be immediately approved for login.</p>
             <form onSubmit={handleCreate} className="modal-form">
               <div className="form-row">
                 <div className="form-group">
                   <label>Full Name</label>
-                  <input type="text" required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Resident Full Name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Email Address</label>
-                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                  <label>Mobile Number (Login ID)</label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit mobile"
+                    value={formData.personal_contact}
+                    onChange={(e) => setFormData({ ...formData, personal_contact: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div className="form-row">
-                <div className="form-group">
-                  <label>Initial Password</label>
-                  <input type="password" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-                </div>
                 <div className="form-group">
                   <label>Room Number</label>
-                  <input type="text" required value={formData.room_number} onChange={(e) => setFormData({ ...formData, room_number: e.target.value })} />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 101, 204B"
+                    value={formData.room_number}
+                    onChange={(e) => setFormData({ ...formData, room_number: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Initial Password</label>
+                  <input
+                    type="password"
+                    placeholder="Defaults to Hostel@123"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Personal Contact</label>
-                  <input type="text" required value={formData.personal_contact} onChange={(e) => setFormData({ ...formData, personal_contact: e.target.value })} />
+                  <label>Emergency Contact</label>
+                  <input
+                    type="text"
+                    placeholder="Parent / Guardian contact"
+                    value={formData.emergency_contact}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Emergency Contact</label>
-                  <input type="text" required value={formData.emergency_contact} onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })} />
+                  <label>Permanent Address</label>
+                  <input
+                    type="text"
+                    placeholder="City / District"
+                    value={formData.permanent_address}
+                    onChange={(e) => setFormData({ ...formData, permanent_address: e.target.value })}
+                  />
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Permanent Address</label>
-                <input type="text" required value={formData.permanent_address} onChange={(e) => setFormData({ ...formData, permanent_address: e.target.value })} />
-              </div>
-
-              <div className="form-group">
-                <label>Fee Status</label>
-                <select value={formData.fee_status} onChange={(e) => setFormData({ ...formData, fee_status: e.target.value })}>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                </select>
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>
+                  Cancel
+                </button>
                 <button type="submit" disabled={actionLoading} className="btn-primary">
-                  {actionLoading ? 'Creating...' : 'Save Student'}
+                  {actionLoading ? 'Creating...' : 'Save & Approve Resident'}
                 </button>
               </div>
             </form>
@@ -349,74 +411,64 @@ export default function StudentManagement() {
       {showEditModal && (
         <div className="modal-overlay">
           <div className="modal-card">
-            <h3>Edit Student Profile ({selectedStudent?.full_name})</h3>
+            <h3>Edit Resident Details ({selectedStudent?.full_name})</h3>
             <form onSubmit={handleUpdate} className="modal-form">
               <div className="form-row">
                 <div className="form-group">
                   <label>Full Name</label>
-                  <input type="text" required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} />
+                  <input
+                    type="text"
+                    required
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
                   <label>Room Number</label>
-                  <input type="text" required value={formData.room_number} onChange={(e) => setFormData({ ...formData, room_number: e.target.value })} />
+                  <input
+                    type="text"
+                    required
+                    value={formData.room_number}
+                    onChange={(e) => setFormData({ ...formData, room_number: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Personal Contact</label>
-                  <input type="text" required value={formData.personal_contact} onChange={(e) => setFormData({ ...formData, personal_contact: e.target.value })} />
+                  <label>Mobile Contact</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.personal_contact}
+                    onChange={(e) => setFormData({ ...formData, personal_contact: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
                   <label>Emergency Contact</label>
-                  <input type="text" required value={formData.emergency_contact} onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })} />
+                  <input
+                    type="text"
+                    value={formData.emergency_contact}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div className="form-group">
                 <label>Permanent Address</label>
-                <input type="text" required value={formData.permanent_address} onChange={(e) => setFormData({ ...formData, permanent_address: e.target.value })} />
-              </div>
-
-              <div className="form-group">
-                <label>Fee Status</label>
-                <select value={formData.fee_status} onChange={(e) => setFormData({ ...formData, fee_status: e.target.value })}>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
-                <button type="submit" disabled={actionLoading} className="btn-primary">
-                  {actionLoading ? 'Updating...' : 'Update Student'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Photo Modal */}
-      {showPhotoModal && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <h3>Upload Profile Photo ({selectedStudent?.full_name})</h3>
-            <form onSubmit={handleUploadPhoto} className="modal-form">
-              <div className="form-group">
-                <label>Select Image File (.jpg, .png)</label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  required
-                  onChange={(e) => setPhotoFile(e.target.files[0])}
+                  type="text"
+                  value={formData.permanent_address}
+                  onChange={(e) => setFormData({ ...formData, permanent_address: e.target.value })}
                 />
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowPhotoModal(false)}>Cancel</button>
-                <button type="submit" disabled={actionLoading || !photoFile} className="btn-primary">
-                  {actionLoading ? 'Uploading...' : 'Upload Photo'}
+                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={actionLoading} className="btn-primary">
+                  {actionLoading ? 'Updating...' : 'Update Details'}
                 </button>
               </div>
             </form>

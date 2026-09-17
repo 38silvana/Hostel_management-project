@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
-import { Receipt, RefreshCw, Lock, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import { Receipt, RefreshCw, Lock, DollarSign, CheckCircle, AlertCircle, Home, FileText } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function BillingManagement() {
@@ -15,6 +15,11 @@ export default function BillingManagement() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
   useEffect(() => {
     fetchBills();
   }, [year, month]);
@@ -26,11 +31,7 @@ export default function BillingManagement() {
       const data = await apiFetch(`/bills?year=${year}&month=${month}`);
       setSummary(data);
     } catch (err) {
-      if (err.status === 404) {
-        setSummary(null); // No bills generated for this month yet
-      } else {
-        setError(err.message || 'Failed to load mess bills.');
-      }
+      setError(err.message || 'Failed to load monthly bills.');
     } finally {
       setLoading(false);
     }
@@ -41,33 +42,33 @@ export default function BillingManagement() {
     setError(null);
     setSuccess(null);
     try {
-      const data = await apiFetch('/bills/generate', {
+      const res = await apiFetch('/bills', {
         method: 'POST',
-        body: JSON.stringify({ year: parseInt(year), month: parseInt(month) })
+        body: JSON.stringify({ year: parseInt(year), month: parseInt(month), action: 'generate' }),
       });
-      setSummary(data);
-      setSuccess(`Mess bills generated/recalculated for ${month}/${year}!`);
+      setSuccess(res.message || `Monthly mess bills recalculated for ${monthNames[month - 1]} ${year}!`);
+      fetchBills();
     } catch (err) {
-      setError(err.message || 'Failed to generate mess bills.');
+      setError(err.message || 'Failed to calculate monthly bills.');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleFinalize = async () => {
-    if (!window.confirm(`Are you sure you want to FINALIZE bills for ${month}/${year}? This action will lock all bills from future regeneration.`)) return;
+    if (!window.confirm(`Are you sure you want to FINALIZE and LOCK bills for ${monthNames[month - 1]} ${year}? Finalized bills cannot be modified.`)) return;
     setActionLoading(true);
     setError(null);
     setSuccess(null);
     try {
-      const data = await apiFetch('/bills/finalize', {
+      const res = await apiFetch('/bills', {
         method: 'POST',
-        body: JSON.stringify({ year: parseInt(year), month: parseInt(month) })
+        body: JSON.stringify({ year: parseInt(year), month: parseInt(month), action: 'finalize' }),
       });
-      setSummary(data);
-      setSuccess(`Mess bills for ${month}/${year} have been finalized and locked!`);
+      setSuccess(res.message || `Bills for ${monthNames[month - 1]} ${year} have been finalized!`);
+      fetchBills();
     } catch (err) {
-      setError(err.message || 'Failed to finalize mess bills.');
+      setError(err.message || 'Failed to finalize bills.');
     } finally {
       setActionLoading(false);
     }
@@ -77,24 +78,17 @@ export default function BillingManagement() {
     <div className="section-container">
       <div className="section-header">
         <div>
-          <h2>Monthly Mess Bill Calculation</h2>
-          <p className="subtitle">SRS Rule: Base ₹1800 (&le; 30 ticks) + ₹55 for each extra tick over 30.</p>
+          <h2>Monthly Resident Mess & Rent Billing</h2>
+          <p className="subtitle">
+            Shanthibavanam Hostel Monthly Report: Base ₹1800 (&le; 30 ticks) + ₹55/extra tick + ₹2700 Hostel Rent.
+          </p>
         </div>
 
-        <div className="billing-controls">
+        <div className="billing-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}>
-            <option value={1}>January</option>
-            <option value={2}>February</option>
-            <option value={3}>March</option>
-            <option value={4}>April</option>
-            <option value={5}>May</option>
-            <option value={6}>June</option>
-            <option value={7}>July</option>
-            <option value={8}>August</option>
-            <option value={9}>September</option>
-            <option value={10}>October</option>
-            <option value={11}>November</option>
-            <option value={12}>December</option>
+            {monthNames.map((name, idx) => (
+              <option key={idx + 1} value={idx + 1}>{name}</option>
+            ))}
           </select>
 
           <select value={year} onChange={(e) => setYear(parseInt(e.target.value))}>
@@ -107,9 +101,10 @@ export default function BillingManagement() {
             className="btn-primary"
             onClick={handleGenerate}
             disabled={actionLoading || (summary && summary.is_finalized)}
-            title={summary && summary.is_finalized ? 'Finalized bills cannot be regenerated' : 'Generate / Recalculate Bills'}
+            title={summary && summary.is_finalized ? 'Finalized bills are locked' : 'Calculate or refresh bills'}
           >
-            <RefreshCw className="icon-sm" /> {summary ? 'Recalculate Bills' : 'Generate Bills'}
+            <RefreshCw className="icon-sm mr-1" />
+            {summary?.bills?.length > 0 ? 'Recalculate Bills' : 'Calculate Bills'}
           </button>
 
           {summary && !summary.is_finalized && (
@@ -117,8 +112,9 @@ export default function BillingManagement() {
               className="btn-warning"
               onClick={handleFinalize}
               disabled={actionLoading}
+              title="Lock bills from further edits"
             >
-              <Lock className="icon-sm" /> Finalize Month
+              <Lock className="icon-sm mr-1" /> Finalize Month
             </button>
           )}
         </div>
@@ -138,32 +134,49 @@ export default function BillingManagement() {
         </div>
       )}
 
+      {/* Formula Explanation Banner */}
+      <div className="card mb-6" style={{ background: '#f8fafc', borderLeft: '4px solid #4f46e5', padding: '12px 16px', marginBottom: '20px' }}>
+        <span style={{ fontSize: '13px', color: '#475569' }}>
+          <strong>Billing Formula:</strong> Base Mess Fee = ₹1,800 (for &le; 30 ticks) &bull; Extra Ticks = (Ticks - 30) &times; ₹55 &bull; Hostel Rent = ₹2,700 fixed &bull; <strong>Total Bill = Mess Fee + Hostel Rent</strong>
+        </span>
+      </div>
+
       {loading ? (
-        <LoadingSpinner label="Calculating mess bills..." />
+        <LoadingSpinner label="Compiling monthly billing report..." />
       ) : summary ? (
         <div>
-          <div className="stats-grid mb-6">
+          {/* Stats Grid */}
+          <div className="stats-grid mb-6" style={{ marginBottom: '24px' }}>
             <div className="stat-card">
               <div className="stat-header">
-                <span className="stat-title">Total Billed Revenue</span>
+                <span className="stat-title">Total Monthly Revenue</span>
                 <DollarSign className="stat-icon text-emerald" />
               </div>
-              <div className="stat-value">₹{summary.total_revenue.toLocaleString()}</div>
-              <p className="stat-desc">Target Period: {summary.month}/{summary.year}</p>
+              <div className="stat-value">₹{summary.total_revenue.toLocaleString('en-IN')}</div>
+              <p className="stat-desc">Rent + Mess fees for {monthNames[summary.month - 1]} {summary.year}</p>
             </div>
 
             <div className="stat-card">
               <div className="stat-header">
-                <span className="stat-title">Students Billed</span>
-                <Receipt className="stat-icon text-indigo" />
+                <span className="stat-title">Mess Fees Total</span>
+                <Receipt className="stat-icon text-amber" />
               </div>
-              <div className="stat-value">{summary.total_students_billed}</div>
-              <p className="stat-desc">Total student records calculated</p>
+              <div className="stat-value">₹{summary.total_mess_revenue.toLocaleString('en-IN')}</div>
+              <p className="stat-desc">Base ₹1800 + extra tick charges</p>
             </div>
 
             <div className="stat-card">
               <div className="stat-header">
-                <span className="stat-title">Billing Status</span>
+                <span className="stat-title">Hostel Rent Total</span>
+                <Home className="stat-icon text-indigo" />
+              </div>
+              <div className="stat-value">₹{summary.total_rent_revenue.toLocaleString('en-IN')}</div>
+              <p className="stat-desc">Fixed ₹2700 per resident</p>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-header">
+                <span className="stat-title">Month Status</span>
                 {summary.is_finalized ? <Lock className="stat-icon text-emerald" /> : <RefreshCw className="stat-icon text-amber" />}
               </div>
               <div className="stat-value text-lg">
@@ -171,54 +184,93 @@ export default function BillingManagement() {
                   {summary.is_finalized ? 'FINALIZED & LOCKED' : 'DRAFT / RECALCULABLE'}
                 </span>
               </div>
-              <p className="stat-desc">{summary.is_finalized ? 'Locked from further updates' : 'Can be recalculated if meal data updates'}</p>
+              <p className="stat-desc">{summary.is_finalized ? 'Bills are finalized' : 'Can recalculate as marks update'}</p>
             </div>
           </div>
 
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Student Name</th>
-                  <th>Room</th>
-                  <th>Total Monthly Ticks</th>
-                  <th>Base Charge (&le;30 Ticks)</th>
-                  <th>Extra Ticks Charge (₹55/tick)</th>
-                  <th>Total Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.bills.map((b) => {
-                  const extraTicks = Math.max(0, b.total_ticks - 30);
-                  const extraCharge = extraTicks * 55;
-                  return (
-                    <tr key={b.id}>
-                      <td className="font-semibold">{b.student_name || `Student #${b.student_profile_id}`}</td>
-                      <td><span className="badge badge-outline">{b.room_number || 'N/A'}</span></td>
-                      <td>
-                        <span className="font-bold">{b.total_ticks}</span> ticks
-                        {b.total_ticks > 30 && <span className="badge badge-warning ml-2">+{extraTicks} Extra</span>}
+          {/* Resident-Wise Table */}
+          <div className="card" style={{ padding: '20px' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h3 style={{ margin: 0 }}>
+                Monthly Resident Report &mdash; {monthNames[summary.month - 1]} {summary.year}
+              </h3>
+              <span className="text-xs text-muted">Admin-only visibility &bull; Detailed resident breakdown</span>
+            </div>
+
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Resident Name</th>
+                    <th>Room</th>
+                    <th style={{ textAlign: 'center' }}>Total Ticks</th>
+                    <th style={{ textAlign: 'center' }}>Extra Ticks</th>
+                    <th>Mess Fee</th>
+                    <th>Hostel Rent</th>
+                    <th style={{ textAlign: 'right' }}>Total Bill Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.bills.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="text-center text-muted" style={{ padding: '24px', textAlign: 'center' }}>
+                        No resident records found to bill for {monthNames[summary.month - 1]} {summary.year}.
                       </td>
-                      <td>₹1,800.00</td>
-                      <td>{extraCharge > 0 ? `+₹${extraCharge.toLocaleString()}` : '₹0.00'}</td>
-                      <td className="font-bold text-emerald">₹{b.amount.toLocaleString()}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ) : (
+                    summary.bills.map((b) => (
+                      <tr key={b.student_id}>
+                        <td>
+                          <strong>{b.student_name}</strong>
+                        </td>
+                        <td>
+                          <span className="badge badge-outline">Room {b.room_number || 'N/A'}</span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ fontWeight: 700 }}>{b.total_ticks}</span> ticks
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {b.extra_ticks > 0 ? (
+                            <span className="badge badge-warning" style={{ fontWeight: 700 }}>
+                              +{b.extra_ticks} extra
+                            </span>
+                          ) : (
+                            <span className="text-muted text-xs">0 (within 30)</span>
+                          )}
+                        </td>
+                        <td>
+                          <span>₹{b.mess_fee.toLocaleString('en-IN')}</span>
+                          {b.extra_ticks > 0 && (
+                            <span className="text-xs text-muted block">
+                              (₹1800 + {b.extra_ticks}&times;₹55)
+                            </span>
+                          )}
+                        </td>
+                        <td>₹{b.hostel_rent.toLocaleString('en-IN')}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <strong className="text-emerald" style={{ fontSize: '15px' }}>
+                            ₹{b.total_bill.toLocaleString('en-IN')}
+                          </strong>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
+                    <td colSpan="4">Total Revenue for {monthNames[summary.month - 1]} {summary.year}</td>
+                    <td>₹{summary.total_mess_revenue.toLocaleString('en-IN')}</td>
+                    <td>₹{summary.total_rent_revenue.toLocaleString('en-IN')}</td>
+                    <td style={{ textAlign: 'right', color: '#15803d', fontSize: '16px' }}>
+                      ₹{summary.total_revenue.toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
-      ) : (
-        <div className="card text-center py-12">
-          <Receipt className="icon-lg text-muted mx-auto mb-4" />
-          <h3>No Mess Bills Generated Yet for {month}/{year}</h3>
-          <p className="text-muted mb-6">Click "Generate Bills" above to calculate monthly mess charges according to meal ticks.</p>
-          <button className="btn-primary" onClick={handleGenerate} disabled={actionLoading}>
-            {actionLoading ? 'Generating...' : 'Generate Bills Now'}
-          </button>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

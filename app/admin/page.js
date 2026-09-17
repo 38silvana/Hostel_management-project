@@ -7,7 +7,7 @@ import StudentManagement from '@/components/StudentManagement';
 import KitchenDashboard from '@/components/KitchenDashboard';
 import BillingManagement from '@/components/BillingManagement';
 import { apiFetch } from '@/lib/api';
-import { Users, Coffee, Moon, DollarSign, ArrowRight } from 'lucide-react';
+import { Users, Coffee, Moon, DollarSign, ArrowRight, UserCheck, Clock } from 'lucide-react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function AdminPage() {
@@ -15,7 +15,9 @@ export default function AdminPage() {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
   useEffect(() => {
     fetchOverviewMetrics();
@@ -25,14 +27,18 @@ export default function AdminPage() {
     try {
       setLoading(true);
       const [studentsData, countsData] = await Promise.all([
-        apiFetch('/students'),
-        apiFetch(`/meals/counts?meal_date=${tomorrowStr}`).catch(() => ({ total_breakfast_count: 0, total_dinner_count: 0 }))
+        apiFetch('/students').catch(() => []),
+        apiFetch(`/meals?mode=daily-sheet&date=${tomorrowStr}`).catch(() => ({ total_breakfast_count: 0, total_dinner_count: 0 })),
       ]);
 
+      const students = studentsData || [];
+      const pendingStudents = students.filter((s) => s.approval_status === 'pending');
+
       setMetrics({
-        totalStudents: studentsData.length,
+        totalStudents: students.length,
+        pendingCount: pendingStudents.length,
         tomorrowBreakfast: countsData.total_breakfast_count || 0,
-        tomorrowDinner: countsData.total_dinner_count || 0
+        tomorrowDinner: countsData.total_dinner_count || 0,
       });
     } catch (err) {
       console.error('Failed to load metrics:', err);
@@ -52,7 +58,7 @@ export default function AdminPage() {
               <div className="section-header">
                 <div>
                   <h2>Administrator Control Center</h2>
-                  <p className="subtitle">Welcome to the Shanthibavanam Hostel Management & Meal Tracking Dashboard.</p>
+                  <p className="subtitle">Welcome to the Shanthibavanam Hostel Management & Daily Meal Tracking Dashboard.</p>
                 </div>
               </div>
 
@@ -60,63 +66,94 @@ export default function AdminPage() {
                 <LoadingSpinner label="Loading dashboard metrics..." />
               ) : (
                 <div>
+                  {metrics?.pendingCount > 0 && (
+                    <div
+                      className="alert alert-warning"
+                      style={{
+                        background: '#fffbeb',
+                        border: '1px solid #fef3c7',
+                        color: '#92400e',
+                        padding: '14px 18px',
+                        borderRadius: '8px',
+                        marginBottom: '24px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setActiveTab('students')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Clock className="alert-icon text-amber" />
+                        <span>
+                          <strong>{metrics.pendingCount} Pending Resident Registration{metrics.pendingCount > 1 ? 's' : ''}:</strong> New residents are waiting for account approval before they can log in.
+                        </span>
+                      </div>
+                      <span className="btn-primary" style={{ padding: '6px 14px', fontSize: '13px' }}>
+                        Review & Approve &rarr;
+                      </span>
+                    </div>
+                  )}
+
                   <div className="stats-grid mb-8">
                     <div className="stat-card" onClick={() => setActiveTab('students')} style={{ cursor: 'pointer' }}>
                       <div className="stat-header">
-                        <span className="stat-title">Total Registered Students</span>
+                        <span className="stat-title">Registered Residents</span>
                         <Users className="stat-icon text-indigo" />
                       </div>
                       <div className="stat-value">{metrics?.totalStudents || 0}</div>
                       <div className="stat-link">
-                        Manage Students <ArrowRight className="icon-xs ml-1" />
+                        Manage Residents <ArrowRight className="icon-xs ml-1" />
+                      </div>
+                    </div>
+
+                    <div className="stat-card" onClick={() => setActiveTab('students')} style={{ cursor: 'pointer' }}>
+                      <div className="stat-header">
+                        <span className="stat-title">Pending Approvals</span>
+                        <UserCheck className="stat-icon text-amber" />
+                      </div>
+                      <div className="stat-value" style={{ color: metrics?.pendingCount > 0 ? '#d97706' : 'inherit' }}>
+                        {metrics?.pendingCount || 0}
+                      </div>
+                      <div className="stat-link">
+                        Review Approvals <ArrowRight className="icon-xs ml-1" />
                       </div>
                     </div>
 
                     <div className="stat-card" onClick={() => setActiveTab('kitchen')} style={{ cursor: 'pointer' }}>
                       <div className="stat-header">
-                        <span className="stat-title">Tomorrow's Breakfast Count</span>
+                        <span className="stat-title">Tomorrow's Breakfast</span>
                         <Coffee className="stat-icon text-amber" />
                       </div>
                       <div className="stat-value">{metrics?.tomorrowBreakfast || 0}</div>
                       <div className="stat-link">
-                        View Kitchen Counts <ArrowRight className="icon-xs ml-1" />
+                        View Food Sheet <ArrowRight className="icon-xs ml-1" />
                       </div>
                     </div>
 
                     <div className="stat-card" onClick={() => setActiveTab('kitchen')} style={{ cursor: 'pointer' }}>
                       <div className="stat-header">
-                        <span className="stat-title">Tomorrow's Dinner Count</span>
+                        <span className="stat-title">Tomorrow's Dinner</span>
                         <Moon className="stat-icon text-indigo" />
                       </div>
                       <div className="stat-value">{metrics?.tomorrowDinner || 0}</div>
                       <div className="stat-link">
-                        View Kitchen Counts <ArrowRight className="icon-xs ml-1" />
-                      </div>
-                    </div>
-
-                    <div className="stat-card" onClick={() => setActiveTab('billing')} style={{ cursor: 'pointer' }}>
-                      <div className="stat-header">
-                        <span className="stat-title">Monthly Mess Billing</span>
-                        <DollarSign className="stat-icon text-emerald" />
-                      </div>
-                      <div className="stat-value">Billing System</div>
-                      <div className="stat-link">
-                        Manage Monthly Bills <ArrowRight className="icon-xs ml-1" />
+                        View Food Sheet <ArrowRight className="icon-xs ml-1" />
                       </div>
                     </div>
                   </div>
 
                   <div className="quick-actions-card card">
-                    <h3>Quick Operational Links</h3>
-                    <div className="action-buttons-grid mt-4 flex gap-4">
+                    <h3>Quick Operations</h3>
+                    <div className="action-buttons-grid mt-4 flex gap-4" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                       <button className="btn-secondary" onClick={() => setActiveTab('students')}>
-                        <Users className="icon-sm" /> Student Directory & Photo Uploads
+                        <Users className="icon-sm" /> Resident Directory & Approvals
                       </button>
                       <button className="btn-secondary" onClick={() => setActiveTab('kitchen')}>
-                        <Coffee className="icon-sm" /> Kitchen Preparation Analytics
+                        <Coffee className="icon-sm" /> Daily Food / Tick Sheet
                       </button>
                       <button className="btn-secondary" onClick={() => setActiveTab('billing')}>
-                        <DollarSign className="icon-sm" /> Mess Billing & Finalization
+                        <DollarSign className="icon-sm" /> Monthly Mess & Rent Billing
                       </button>
                     </div>
                   </div>
