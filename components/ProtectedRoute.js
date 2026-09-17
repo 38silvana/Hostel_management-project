@@ -9,12 +9,20 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const isRoleAllowed = (role) => {
+    if (!allowedRoles || allowedRoles.length === 0) return true;
+    if (!role) return false;
+    const lowerRole = String(role).trim().toLowerCase();
+    return allowedRoles.some((r) => String(r).trim().toLowerCase() === lowerRole);
+  };
+
   useEffect(() => {
     if (!loading) {
       if (!user) {
         router.replace('/login');
-      } else if (allowedRoles && !allowedRoles.includes(user.role)) {
-        router.replace(user.role === 'admin' ? '/admin' : '/student');
+      } else if (!isRoleAllowed(user.role)) {
+        const isAdmin = String(user.role || '').trim().toLowerCase() === 'admin';
+        router.replace(isAdmin ? '/admin' : '/student');
       }
     }
   }, [user, loading, allowedRoles, router]);
@@ -23,7 +31,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <LoadingSpinner label="Authenticating session..." />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (!isRoleAllowed(user.role)) {
     return null;
   }
 

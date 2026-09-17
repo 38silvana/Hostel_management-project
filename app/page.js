@@ -12,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        if (user.role === 'admin') {
+        if (String(user.role || '').trim().toLowerCase() === 'admin') {
           router.replace('/admin');
         } else {
           router.replace('/student');

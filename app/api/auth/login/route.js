@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { normalizeIdentifierToEmail } from '@/lib/auth-helpers';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,11 +50,35 @@ export async function POST(request) {
     }
 
     const authUser = data.session.user;
-    const role = authUser.user_metadata?.role || 'student';
-    const approvalStatus = authUser.user_metadata?.approval_status || (role === 'admin' ? 'approved' : 'pending');
+
+    // Check profiles table (supports admin role as ADMIN or admin in profiles table)
+    let dbRole = null;
+    let dbFullName = null;
+    try {
+      const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? supabaseAdmin : supabase;
+      const { data: profile } = await client
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (profile?.role) {
+        dbRole = profile.role;
+      }
+      if (profile?.full_name) {
+        dbFullName = profile.full_name;
+      }
+    } catch (e) {
+      console.warn('Could not query profile in login route:', e);
+    }
+
+    const rawRole = dbRole || authUser.user_metadata?.role || 'student';
+    const isAdmin = String(rawRole).trim().toLowerCase() === 'admin';
+    const role = isAdmin ? 'admin' : rawRole;
+    const approvalStatus = authUser.user_metadata?.approval_status || (isAdmin ? 'approved' : 'pending');
 
     // CRITICAL REQUIREMENT: Check student approval status
-    if (role === 'student' && approvalStatus !== 'approved') {
+    if (!isAdmin && approvalStatus !== 'approved') {
       return NextResponse.json(
         {
           error: 'Your account is pending Admin approval. Please wait for the Shanthibavanam Hostel Warden/Admin to review and approve your registration.',
@@ -68,7 +93,7 @@ export async function POST(request) {
       user: {
         id: authUser.id,
         email: authUser.email,
-        full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+        full_name: dbFullName || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
         role,
         approval_status: approvalStatus,
         mobile: authUser.user_metadata?.mobile || '',

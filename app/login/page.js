@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Building2, KeyRound, Phone, User, ShieldCheck, AlertCircle, Home, MapPin, Clock, UserPlus } from 'lucide-react';
@@ -8,9 +8,20 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, signup, setupInitialAdmin } = useAuth();
+  const { login, signup, user, loading: authLoading } = useAuth();
 
-  const [tab, setTab] = useState('login'); // 'login' | 'signup' | 'setup'
+  // If user already has a persisted session, redirect directly to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (String(user?.role || '').toLowerCase() === 'admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/student');
+      }
+    }
+  }, [user, authLoading, router]);
+
+  const [tab, setTab] = useState('login'); // 'login' | 'signup'
 
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -26,11 +37,6 @@ export default function LoginPage() {
     emergency_contact: '',
   });
 
-  // Setup admin form state
-  const [adminFullName, setAdminFullName] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-
   // Status & Feedback
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -43,6 +49,15 @@ export default function LoginPage() {
     setSuccessMsg(null);
   };
 
+  // If session is authenticating or user is already verified, show redirect spinner
+  if (authLoading || user) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner label="Authenticating session..." />
+      </div>
+    );
+  }
+
   const handleLogin = async (e) => {
     e.preventDefault();
     resetNotices();
@@ -50,7 +65,7 @@ export default function LoginPage() {
 
     try {
       const loggedUser = await login(loginIdentifier, loginPassword);
-      if (loggedUser.role === 'admin') {
+      if (String(loggedUser?.role || '').toLowerCase() === 'admin') {
         router.push('/admin');
       } else {
         router.push('/student');
@@ -83,28 +98,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleSetupAdmin = async (e) => {
-    e.preventDefault();
-    resetNotices();
-    setLoading(true);
-
-    try {
-      await setupInitialAdmin({
-        email: adminEmail,
-        password: adminPassword,
-        full_name: adminFullName,
-        role: 'admin',
-      });
-      setSuccessMsg('Initial Admin account created successfully! You can now log in.');
-      setLoginIdentifier(adminEmail);
-      setTab('login');
-    } catch (err) {
-      setError(err.message || 'Failed to setup admin account.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="auth-container">
       <div className="auth-card">
@@ -126,12 +119,6 @@ export default function LoginPage() {
             onClick={() => { setTab('signup'); resetNotices(); }}
           >
             Resident Signup
-          </button>
-          <button
-            className={`tab-btn ${tab === 'setup' ? 'active' : ''}`}
-            onClick={() => { setTab('setup'); resetNotices(); }}
-          >
-            Setup Admin
           </button>
         </div>
 
@@ -174,7 +161,7 @@ export default function LoginPage() {
                 />
               </div>
               <span className="text-xs text-muted" style={{ display: 'block', marginTop: '4px' }}>
-                Residents: Enter your 10-digit registered mobile number
+                Residents: 10-digit mobile number | Admin: Email address
               </span>
             </div>
 
@@ -295,58 +282,6 @@ export default function LoginPage() {
             <p className="text-xs text-muted" style={{ textAlign: 'center', marginTop: '8px' }}>
               Note: Accounts require Admin approval before you can sign in.
             </p>
-          </form>
-        )}
-
-        {/* 3. SETUP ADMIN TAB */}
-        {tab === 'setup' && (
-          <form onSubmit={handleSetupAdmin} className="auth-form">
-            <div className="form-group">
-              <label>Admin Full Name</label>
-              <div className="input-with-icon">
-                <User className="input-icon" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Chief Warden Admin"
-                  value={adminFullName}
-                  onChange={(e) => setAdminFullName(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Admin Email</label>
-              <div className="input-with-icon">
-                <User className="input-icon" />
-                <input
-                  type="email"
-                  required
-                  placeholder="admin@shanthibavanam.com"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Admin Password</label>
-              <div className="input-with-icon">
-                <KeyRound className="input-icon" />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', marginTop: '8px' }}>
-              {loading ? <LoadingSpinner label="Setting up..." /> : 'Create Initial Admin Account'}
-            </button>
           </form>
         )}
       </div>

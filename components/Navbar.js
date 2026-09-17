@@ -9,7 +9,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
   if (!user) return null;
 
-  const isAdmin = user.role === 'admin';
+  const isAdmin = String(user.role || '').trim().toLowerCase() === 'admin';
 
   return (
     <header className="navbar">
