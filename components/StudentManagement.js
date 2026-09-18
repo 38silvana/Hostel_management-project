@@ -186,8 +186,17 @@ export default function StudentManagement() {
       )}
 
       {/* Tabs & Search */}
-      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px' }}>
-        <div className="auth-tabs" style={{ margin: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div className="auth-tabs" style={{ margin: 0, flexWrap: 'wrap' }}>
           <button
             className={`tab-btn ${filterTab === 'all' ? 'active' : ''}`}
             onClick={() => setFilterTab('all')}
@@ -201,7 +210,16 @@ export default function StudentManagement() {
           >
             Pending Approvals
             {pendingCount > 0 && (
-              <span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '10px', padding: '2px 8px', fontSize: '12px' }}>
+              <span
+                style={{
+                  marginLeft: '6px',
+                  background: '#ef4444',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '2px 8px',
+                  fontSize: '12px',
+                }}
+              >
                 {pendingCount}
               </span>
             )}
@@ -214,11 +232,11 @@ export default function StudentManagement() {
           </button>
         </div>
 
-        <div className="search-bar" style={{ minWidth: '280px', margin: 0 }}>
+        <div className="search-bar" style={{ maxWidth: '320px', margin: 0 }}>
           <Search className="search-icon" />
           <input
             type="text"
-            placeholder="Search by name, room, mobile..."
+            placeholder="Search name, room, mobile..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -228,96 +246,261 @@ export default function StudentManagement() {
       {loading ? (
         <LoadingSpinner label="Loading resident records..." />
       ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Resident Name</th>
-                <th>Room No</th>
-                <th>Mobile Number</th>
-                <th>Account Status</th>
-                <th>Emergency / Address</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.length === 0 ? (
+        <>
+          {/* DESKTOP TABLE VIEW */}
+          <div className="table-container desktop-only">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan="6" className="text-center text-muted" style={{ textAlign: 'center', padding: '32px' }}>
-                    {filterTab === 'pending'
-                      ? 'No pending registration requests. All resident signups are up to date!'
-                      : 'No resident records found.'}
-                  </td>
+                  <th>Resident Name</th>
+                  <th>Room No</th>
+                  <th>Mobile Number</th>
+                  <th>Account Status</th>
+                  <th>Emergency / Address</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                filteredStudents.map((s) => (
-                  <tr key={s.id} style={{ background: s.approval_status === 'pending' ? '#fffdf7' : 'inherit' }}>
-                    <td>
-                      <div className="user-cell">
-                        <div className="cell-avatar-placeholder" style={{ background: s.approval_status === 'pending' ? '#f59e0b' : '#4f46e5' }}>
-                          {s.full_name ? s.full_name[0].toUpperCase() : 'R'}
-                        </div>
-                        <div>
-                          <span className="font-semibold block">{s.full_name}</span>
-                          <span className="text-xs text-muted">ID #{s.id}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge badge-outline">
-                        <Home className="icon-xs inline mr-1" /> Room {s.room_number}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="text-sm">
-                        <Phone className="icon-xs inline mr-1 text-muted" />
-                        <strong>{s.personal_contact || 'N/A'}</strong>
-                      </div>
-                    </td>
-                    <td>
-                      {s.approval_status === 'pending' ? (
-                        <span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-                          <Clock className="icon-xs inline mr-1" /> PENDING APPROVAL
-                        </span>
-                      ) : (
-                        <span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
-                          <UserCheck className="icon-xs inline mr-1" /> APPROVED
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="text-xs text-muted">
-                        <div>Emergency: {s.emergency_contact || 'N/A'}</div>
-                        <div>Address: {s.permanent_address || 'N/A'}</div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="action-buttons" style={{ display: 'flex', gap: '6px' }}>
-                        {s.approval_status === 'pending' && (
-                          <button
-                            className="btn-primary"
-                            style={{ padding: '4px 10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            title="Approve Resident"
-                            onClick={() => handleApprove(s)}
-                            disabled={actionLoading}
-                          >
-                            <CheckCircle className="icon-xs" /> Approve
-                          </button>
-                        )}
-                        <button className="btn-icon" title="Edit Resident" onClick={() => openEditModal(s)}>
-                          <Edit className="icon-xs" />
-                        </button>
-                        <button className="btn-icon danger" title="Delete Resident" onClick={() => handleDelete(s.id, s.full_name)}>
-                          <Trash2 className="icon-xs" />
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="text-center text-muted"
+                      style={{ textAlign: 'center', padding: '32px' }}
+                    >
+                      {filterTab === 'pending'
+                        ? 'No pending registration requests. All resident signups are up to date!'
+                        : 'No resident records found.'}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filteredStudents.map((s) => (
+                    <tr
+                      key={s.id}
+                      style={{ background: s.approval_status === 'pending' ? '#fffdf7' : 'inherit' }}
+                    >
+                      <td>
+                        <div className="user-cell">
+                          <div
+                            className="cell-avatar-placeholder"
+                            style={{
+                              background: s.approval_status === 'pending' ? '#f59e0b' : '#4f46e5',
+                            }}
+                          >
+                            {s.full_name ? s.full_name[0].toUpperCase() : 'R'}
+                          </div>
+                          <div>
+                            <span className="font-semibold block">{s.full_name}</span>
+                            <span className="text-xs text-muted">ID #{s.id}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-outline">
+                          <Home className="icon-xs inline mr-1" /> Room {s.room_number}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="text-sm">
+                          <Phone className="icon-xs inline mr-1 text-muted" />
+                          <strong>{s.personal_contact || 'N/A'}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        {s.approval_status === 'pending' ? (
+                          <span
+                            className="badge badge-warning"
+                            style={{
+                              background: '#fef3c7',
+                              color: '#92400e',
+                              border: '1px solid #fde68a',
+                            }}
+                          >
+                            <Clock className="icon-xs inline mr-1" /> PENDING APPROVAL
+                          </span>
+                        ) : (
+                          <span
+                            className="badge badge-success"
+                            style={{
+                              background: '#dcfce7',
+                              color: '#166534',
+                              border: '1px solid #bbf7d0',
+                            }}
+                          >
+                            <UserCheck className="icon-xs inline mr-1" /> APPROVED
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="text-xs text-muted">
+                          <div>Emergency: {s.emergency_contact || 'N/A'}</div>
+                          <div>Address: {s.permanent_address || 'N/A'}</div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="action-buttons" style={{ display: 'flex', gap: '6px' }}>
+                          {s.approval_status === 'pending' && (
+                            <button
+                              className="btn-primary"
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                              title="Approve Resident"
+                              onClick={() => handleApprove(s)}
+                              disabled={actionLoading}
+                            >
+                              <CheckCircle className="icon-xs" /> Approve
+                            </button>
+                          )}
+                          <button
+                            className="btn-icon"
+                            title="Edit Resident"
+                            onClick={() => openEditModal(s)}
+                          >
+                            <Edit className="icon-xs" />
+                          </button>
+                          <button
+                            className="btn-icon danger"
+                            title="Delete Resident"
+                            onClick={() => handleDelete(s.id, s.full_name)}
+                          >
+                            <Trash2 className="icon-xs" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* MOBILE CARD VIEW (No horizontal scrolling on phones) */}
+          <div className="mobile-only mobile-card-list">
+            {filteredStudents.length === 0 ? (
+              <div
+                className="card text-center text-muted"
+                style={{ textAlign: 'center', padding: '24px' }}
+              >
+                {filterTab === 'pending'
+                  ? 'No pending registration requests. All resident signups are up to date!'
+                  : 'No resident records found.'}
+              </div>
+            ) : (
+              filteredStudents.map((s) => (
+                <div
+                  key={s.id}
+                  className="mobile-data-card"
+                  style={{
+                    borderLeft:
+                      s.approval_status === 'pending' ? '4px solid #f59e0b' : '4px solid #10b981',
+                  }}
+                >
+                  <div className="mobile-card-header">
+                    <div className="user-cell">
+                      <div
+                        className="cell-avatar-placeholder"
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          fontSize: '15px',
+                          background: s.approval_status === 'pending' ? '#f59e0b' : '#4f46e5',
+                        }}
+                      >
+                        {s.full_name ? s.full_name[0].toUpperCase() : 'R'}
+                      </div>
+                      <div>
+                        <strong style={{ fontSize: '15px', color: '#0f172a' }}>{s.full_name}</strong>
+                        <span className="text-xs text-muted block">ID #{s.id}</span>
+                      </div>
+                    </div>
+                    <span className="badge badge-outline">Room {s.room_number}</span>
+                  </div>
+
+                  <div className="mobile-card-grid">
+                    <div className="mobile-card-item">
+                      <span className="mobile-card-label">Mobile (Login)</span>
+                      <span className="mobile-card-val">{s.personal_contact || 'N/A'}</span>
+                    </div>
+                    <div className="mobile-card-item">
+                      <span className="mobile-card-label">Status</span>
+                      <div>
+                        {s.approval_status === 'pending' ? (
+                          <span
+                            className="badge badge-warning"
+                            style={{
+                              background: '#fef3c7',
+                              color: '#92400e',
+                              fontSize: '11px',
+                              padding: '2px 6px',
+                            }}
+                          >
+                            Pending
+                          </span>
+                        ) : (
+                          <span
+                            className="badge badge-success"
+                            style={{
+                              background: '#dcfce7',
+                              color: '#166534',
+                              fontSize: '11px',
+                              padding: '2px 6px',
+                            }}
+                          >
+                            Approved
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {(s.emergency_contact || s.permanent_address) && (
+                    <div className="text-xs text-muted" style={{ lineHeight: 1.4 }}>
+                      {s.emergency_contact && <div>Emergency: <strong>{s.emergency_contact}</strong></div>}
+                      {s.permanent_address && <div>Address: {s.permanent_address}</div>}
+                    </div>
+                  )}
+
+                  <div className="mobile-card-actions">
+                    {s.approval_status === 'pending' && (
+                      <button
+                        className="btn-primary"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '13px',
+                          flex: 1,
+                        }}
+                        onClick={() => handleApprove(s)}
+                        disabled={actionLoading}
+                      >
+                        <CheckCircle className="icon-xs" /> Approve
+                      </button>
+                    )}
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '13px', flex: 1 }}
+                      onClick={() => openEditModal(s)}
+                    >
+                      <Edit className="icon-xs" /> Edit
+                    </button>
+                    <button
+                      className="btn-icon danger"
+                      style={{ padding: '6px 10px' }}
+                      title="Delete Resident"
+                      onClick={() => handleDelete(s.id, s.full_name)}
+                    >
+                      <Trash2 className="icon-xs" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       )}
 
       {/* Add Modal */}

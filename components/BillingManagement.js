@@ -197,7 +197,8 @@ export default function BillingManagement() {
               <span className="text-xs text-muted">Admin-only visibility &bull; Detailed resident breakdown</span>
             </div>
 
-            <div className="table-container">
+            {/* DESKTOP TABLE VIEW */}
+            <div className="table-container desktop-only">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -213,8 +214,13 @@ export default function BillingManagement() {
                 <tbody>
                   {summary.bills.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center text-muted" style={{ padding: '24px', textAlign: 'center' }}>
-                        No resident records found to bill for {monthNames[summary.month - 1]} {summary.year}.
+                      <td
+                        colSpan="7"
+                        className="text-center text-muted"
+                        style={{ padding: '24px', textAlign: 'center' }}
+                      >
+                        No resident records found to bill for {monthNames[summary.month - 1]}{' '}
+                        {summary.year}.
                       </td>
                     </tr>
                   ) : (
@@ -258,7 +264,9 @@ export default function BillingManagement() {
                 </tbody>
                 <tfoot>
                   <tr style={{ background: '#f9fafb', fontWeight: 700 }}>
-                    <td colSpan="4">Total Revenue for {monthNames[summary.month - 1]} {summary.year}</td>
+                    <td colSpan="4">
+                      Total Revenue for {monthNames[summary.month - 1]} {summary.year}
+                    </td>
                     <td>₹{summary.total_mess_revenue.toLocaleString('en-IN')}</td>
                     <td>₹{summary.total_rent_revenue.toLocaleString('en-IN')}</td>
                     <td style={{ textAlign: 'right', color: '#15803d', fontSize: '16px' }}>
@@ -267,6 +275,128 @@ export default function BillingManagement() {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* MOBILE CARD VIEW (No horizontal scrolling on phones) */}
+            <div className="mobile-only mobile-card-list">
+              {summary.bills.length === 0 ? (
+                <div
+                  className="card text-center text-muted"
+                  style={{ textAlign: 'center', padding: '24px' }}
+                >
+                  No resident records found to bill for {monthNames[summary.month - 1]} {summary.year}.
+                </div>
+              ) : (
+                summary.bills.map((b) => (
+                  <div key={b.student_id} className="mobile-data-card">
+                    <div className="mobile-card-header">
+                      <div>
+                        <strong style={{ fontSize: '15px', color: '#0f172a' }}>
+                          {b.student_name}
+                        </strong>
+                        <div className="text-xs text-muted" style={{ marginTop: '2px' }}>
+                          Room {b.room_number || 'N/A'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span className="text-xs text-muted block">Total Bill</span>
+                        <strong className="text-emerald" style={{ fontSize: '16px' }}>
+                          ₹{b.total_bill.toLocaleString('en-IN')}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="mobile-card-grid">
+                      <div className="mobile-card-item">
+                        <span className="mobile-card-label">Monthly Ticks</span>
+                        <span className="mobile-card-val">
+                          {b.total_ticks} ticks
+                          {b.extra_ticks > 0 ? (
+                            <span
+                              className="badge badge-warning"
+                              style={{ fontSize: '10px', padding: '1px 5px', marginLeft: '4px' }}
+                            >
+                              +{b.extra_ticks} extra
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted" style={{ fontWeight: 'normal', marginLeft: '4px' }}>
+                              (&le;30)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="mobile-card-item">
+                        <span className="mobile-card-label">Mess Fee</span>
+                        <span className="mobile-card-val">
+                          ₹{b.mess_fee.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+
+                      <div className="mobile-card-item">
+                        <span className="mobile-card-label">Hostel Rent</span>
+                        <span className="mobile-card-val">
+                          ₹{b.hostel_rent.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+
+                      <div className="mobile-card-item">
+                        <span className="mobile-card-label">Bill Status</span>
+                        <div>
+                          <span
+                            className={`badge ${b.is_finalized ? 'badge-success' : 'badge-outline'}`}
+                            style={{ fontSize: '11px', padding: '2px 6px' }}
+                          >
+                            {b.is_finalized ? 'Finalized' : 'Draft'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Mobile Total Summary Card */}
+              {summary.bills.length > 0 && (
+                <div
+                  className="card"
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    fontSize: '13px',
+                  }}
+                >
+                  <strong style={{ color: '#0f172a' }}>
+                    Month Summary ({monthNames[summary.month - 1]} {summary.year}):
+                  </strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="text-muted">Total Mess Revenue:</span>
+                    <strong>₹{summary.total_mess_revenue.toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="text-muted">Total Rent Revenue:</span>
+                    <strong>₹{summary.total_rent_revenue.toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      borderTop: '1px solid #e2e8f0',
+                      paddingTop: '6px',
+                      fontSize: '15px',
+                    }}
+                  >
+                    <span>Total Revenue:</span>
+                    <strong style={{ color: '#15803d' }}>
+                      ₹{summary.total_revenue.toLocaleString('en-IN')}
+                    </strong>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

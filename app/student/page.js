@@ -196,8 +196,8 @@ export default function StudentPage() {
               {loading ? (
                 <LoadingSpinner label="Loading your meal choices..." />
               ) : (
-                <div className="card max-w-2xl mx-auto" style={{ maxWidth: '640px', margin: '0 auto', padding: '24px' }}>
-                  <div className="card-header border-b pb-4 mb-6" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '24px' }}>
+                <div className="card" style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
+                  <div className="card-header border-b pb-4 mb-6" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
                     <h3 className="flex items-center gap-2" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '18px' }}>
                       <Utensils className="text-primary" /> Tomorrow's Food Preference
                     </h3>

@@ -41,7 +41,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 className={`nav-btn ${activeTab === 'kitchen' ? 'active' : ''}`}
                 onClick={() => setActiveTab('kitchen')}
               >
-                Kitchen Counts
+                Daily Ticks & Kitchen
               </button>
               <button
                 className={`nav-btn ${activeTab === 'billing' ? 'active' : ''}`}

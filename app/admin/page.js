@@ -75,21 +75,23 @@ export default function AdminPage() {
                         color: '#92400e',
                         padding: '14px 18px',
                         borderRadius: '8px',
-                        marginBottom: '24px',
+                        marginBottom: '20px',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
                         cursor: 'pointer',
                       }}
                       onClick={() => setActiveTab('students')}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 240px' }}>
                         <Clock className="alert-icon text-amber" />
                         <span>
                           <strong>{metrics.pendingCount} Pending Resident Registration{metrics.pendingCount > 1 ? 's' : ''}:</strong> New residents are waiting for account approval before they can log in.
                         </span>
                       </div>
-                      <span className="btn-primary" style={{ padding: '6px 14px', fontSize: '13px' }}>
+                      <span className="btn-primary" style={{ padding: '6px 14px', fontSize: '13px', whiteSpace: 'nowrap' }}>
                         Review & Approve &rarr;
                       </span>
                     </div>
@@ -127,7 +129,7 @@ export default function AdminPage() {
                       </div>
                       <div className="stat-value">{metrics?.tomorrowBreakfast || 0}</div>
                       <div className="stat-link">
-                        View Food Sheet <ArrowRight className="icon-xs ml-1" />
+                        View Daily Ticks <ArrowRight className="icon-xs ml-1" />
                       </div>
                     </div>
 
@@ -138,21 +140,21 @@ export default function AdminPage() {
                       </div>
                       <div className="stat-value">{metrics?.tomorrowDinner || 0}</div>
                       <div className="stat-link">
-                        View Food Sheet <ArrowRight className="icon-xs ml-1" />
+                        View Daily Ticks <ArrowRight className="icon-xs ml-1" />
                       </div>
                     </div>
                   </div>
 
                   <div className="quick-actions-card card">
                     <h3>Quick Operations</h3>
-                    <div className="action-buttons-grid mt-4 flex gap-4" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                      <button className="btn-secondary" onClick={() => setActiveTab('students')}>
+                    <div className="action-buttons-grid mt-4" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+                      <button className="btn-secondary" style={{ flex: '1 1 200px' }} onClick={() => setActiveTab('students')}>
                         <Users className="icon-sm" /> Resident Directory & Approvals
                       </button>
-                      <button className="btn-secondary" onClick={() => setActiveTab('kitchen')}>
-                        <Coffee className="icon-sm" /> Daily Food / Tick Sheet
+                      <button className="btn-secondary" style={{ flex: '1 1 200px' }} onClick={() => setActiveTab('kitchen')}>
+                        <Coffee className="icon-sm" /> Daily Ticks & Meal History
                       </button>
-                      <button className="btn-secondary" onClick={() => setActiveTab('billing')}>
+                      <button className="btn-secondary" style={{ flex: '1 1 200px' }} onClick={() => setActiveTab('billing')}>
                         <DollarSign className="icon-sm" /> Monthly Mess & Rent Billing
                       </button>
                     </div>

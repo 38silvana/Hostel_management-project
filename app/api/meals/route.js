@@ -101,6 +101,8 @@ export async function GET(request) {
       if (dinner) totalDinner++;
       if (hasResponded) totalResponded++;
 
+      const dailyTicks = (breakfast ? 1 : 0) + (dinner ? 1 : 0);
+
       return {
         student_id: student.id,
         full_name: student.full_name,
@@ -109,6 +111,8 @@ export async function GET(request) {
         has_responded: hasResponded,
         breakfast,
         dinner,
+        total_ticks: dailyTicks,
+        updated_at: sel?.updated_at || sel?.created_at || null,
       };
     });
 
