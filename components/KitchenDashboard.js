@@ -15,6 +15,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Phone,
+  Edit,
+  CheckCircle,
 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import {
@@ -24,6 +27,24 @@ import {
   formatDateDisplay,
   getDateRelativeLabel,
 } from '@/lib/config';
+import { shareDailyMealReportOnWhatsApp } from '@/lib/whatsapp';
+import { useAuth } from '@/lib/auth-context';
+
+function WhatsAppIcon({ className = 'icon-xs', size = 16 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
 
 export default function KitchenDashboard() {
   const todayStr = getTodayDateIndia();
@@ -38,9 +59,87 @@ export default function KitchenDashboard() {
   const [sheetFilter, setSheetFilter] = useState('all'); // 'all' | 'opted' | 'breakfast' | 'dinner' | 'skipped'
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Admin WhatsApp recipient management
+  const { user, refreshUser } = useAuth();
+  const [adminWhatsAppNumber, setAdminWhatsAppNumber] = useState('');
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+
   useEffect(() => {
     fetchDailySheet();
   }, [selectedDate]);
+
+  useEffect(() => {
+    fetchAdminWhatsApp();
+  }, [user]);
+
+  const fetchAdminWhatsApp = async () => {
+    try {
+      const res = await apiFetch('/admin/whatsapp-number');
+      if (res?.whatsapp_number) {
+        setAdminWhatsAppNumber(res.whatsapp_number);
+        setPhoneInput(res.whatsapp_number);
+      } else if (user?.whatsapp_number) {
+        setAdminWhatsAppNumber(user.whatsapp_number);
+        setPhoneInput(user.whatsapp_number);
+      }
+    } catch (e) {
+      if (user?.whatsapp_number) {
+        setAdminWhatsAppNumber(user.whatsapp_number);
+        setPhoneInput(user.whatsapp_number);
+      }
+    }
+  };
+
+  const handleSavePhone = async (e) => {
+    e.preventDefault();
+    setPhoneError(null);
+    setPhoneSaving(true);
+    try {
+      const res = await apiFetch('/admin/whatsapp-number', {
+        method: 'POST',
+        body: JSON.stringify({ whatsapp_number: phoneInput }),
+      });
+      setAdminWhatsAppNumber(res.whatsapp_number);
+      if (refreshUser) refreshUser();
+      setShowPhoneModal(false);
+      setSuccessMsg('Admin WhatsApp number updated successfully!');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err) {
+      setPhoneError(err.message || 'Failed to save admin WhatsApp number.');
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
+
+  const handleWhatsAppShareDaily = () => {
+    setError(null);
+    const targetNumber = adminWhatsAppNumber || user?.whatsapp_number;
+    if (!targetNumber) {
+      setPhoneError('Please enter your WhatsApp number to receive daily meal reports.');
+      setPhoneInput('');
+      setShowPhoneModal(true);
+      return;
+    }
+
+    const relativeTag = getDateRelativeLabel(selectedDate);
+    const dateText = formatDateDisplay(selectedDate);
+    const dateLabel = relativeTag ? `${dateText} (${relativeTag})` : dateText;
+
+    shareDailyMealReportOnWhatsApp(
+      targetNumber,
+      data,
+      selectedDate,
+      dateLabel,
+      (errMsg) => {
+        setError(errMsg);
+        setShowPhoneModal(true);
+      }
+    );
+  };
 
   const fetchDailySheet = async () => {
     try {
@@ -207,6 +306,73 @@ export default function KitchenDashboard() {
           Showing real-time & historical records from meal_selections
         </span>
       </div>
+
+      {/* WhatsApp Share & Admin Recipient Controls */}
+      <div
+        className="card"
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          padding: '12px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-whatsapp"
+            onClick={handleWhatsAppShareDaily}
+            disabled={loading || !data}
+            title={`Share daily meal report for ${formattedDate || selectedDate} on Admin WhatsApp`}
+          >
+            <WhatsAppIcon size={16} />
+            <span>Share Report on WhatsApp</span>
+          </button>
+
+          <span className="text-xs text-muted">
+            Sends Breakfast & Dinner resident lists + headcounts to Admin WhatsApp.
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span className="text-xs text-muted">Recipient:</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            onClick={() => {
+              setPhoneInput(adminWhatsAppNumber || '');
+              setPhoneError(null);
+              setShowPhoneModal(true);
+            }}
+            title="Configure or change Admin WhatsApp number"
+          >
+            <Phone className="icon-xs text-emerald" />
+            <strong style={{ color: adminWhatsAppNumber ? '#0f172a' : '#d97706' }}>
+              {adminWhatsAppNumber ? `📱 +91 ${adminWhatsAppNumber}` : '⚠️ Set Admin WhatsApp Number'}
+            </strong>
+            <Edit className="icon-xs text-muted" />
+          </button>
+        </div>
+      </div>
+
+      {successMsg && (
+        <div className="alert alert-success">
+          <CheckCircle className="alert-icon" />
+          <span>{successMsg}</span>
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-error">
@@ -565,6 +731,62 @@ export default function KitchenDashboard() {
           </div>
         </div>
       ) : null}
+      {/* Modal: Set / Change Admin WhatsApp Number */}
+      {showPhoneModal && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>Admin WhatsApp Recipient</h3>
+            <p className="text-xs text-muted mb-4">
+              Enter the WhatsApp mobile number where daily hostel meal reports (Breakfast &amp; Dinner headcounts and resident names) will be sent.
+            </p>
+
+            {phoneError && (
+              <div className="alert alert-error mb-4" style={{ marginBottom: '12px' }}>
+                <AlertCircle className="alert-icon" />
+                <span>{phoneError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSavePhone} className="modal-form">
+              <div className="form-group">
+                <label>Admin 10-Digit Mobile Number</label>
+                <div className="input-with-icon">
+                  <Phone className="input-icon" />
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="e.g. 9876543210"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, ''))}
+                    autoFocus
+                  />
+                </div>
+                <span className="text-xs text-muted" style={{ display: 'block', marginTop: '4px' }}>
+                  Standard 10-digit Indian mobile number (e.g. 9876543210).
+                </span>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowPhoneModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={phoneSaving}
+                  className="btn-primary"
+                >
+                  {phoneSaving ? 'Saving...' : 'Save WhatsApp Number'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

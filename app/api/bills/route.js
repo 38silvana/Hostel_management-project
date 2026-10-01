@@ -14,11 +14,27 @@ export async function GET(request) {
     // 1. Fetch all student profiles
     const { data: students, error: stError } = await supabaseAdmin
       .from('student_profiles')
-      .select('id, full_name, room_number')
+      .select('id, user_id, full_name, room_number, personal_contact')
       .order('room_number', { ascending: true });
 
     if (stError) {
       return NextResponse.json({ error: stError.message }, { status: 500 });
+    }
+
+    // Fallback: if any student is missing personal_contact, fetch auth metadata
+    const missingContact = (students || []).some((s) => !s.personal_contact && s.user_id);
+    let authMobileMap = new Map();
+    if (missingContact) {
+      try {
+        const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
+        (authData?.users || []).forEach((u) => {
+          if (u.user_metadata?.mobile) {
+            authMobileMap.set(u.id, u.user_metadata.mobile);
+          }
+        });
+      } catch (aErr) {
+        console.warn('Could not fetch auth users for fallback mobile:', aErr);
+      }
     }
 
     // 2. Fetch existing generated mess_bills for this year & month
@@ -73,11 +89,14 @@ export async function GET(request) {
       totalMessFee += calc.messFee;
       totalHostelRent += calc.hostelRent;
 
+      const contact = student.personal_contact || (student.user_id ? authMobileMap.get(student.user_id) : '') || '';
+
       return {
         id: stored?.id || `draft-${student.id}`,
         student_id: student.id,
         student_name: student.full_name,
         room_number: student.room_number,
+        personal_contact: contact,
         total_ticks: calc.totalTicks,
         extra_ticks: calc.extraTicks,
         mess_fee: calc.messFee,
