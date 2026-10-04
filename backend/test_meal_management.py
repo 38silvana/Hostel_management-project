@@ -99,8 +99,16 @@ def test_module_3_meal_management():
     assert bob_meal.status_code == 200
     print(" -> SUCCESS: Bob selected meals (Breakfast: False, Dinner: True)")
 
-    # 7. Test 10 PM Cutoff Enforcement (Hour: 22 - 10:00 PM) -> Expect HTTP 400 Bad Request
-    print("\n[7] Testing 10 PM cutoff enforcement (simulating 10:00 PM / Hour 22)...")
+    # 7. Test 10:00 AM - 10:00 PM Window Enforcement
+    print("\n[7a] Testing rejection before 10:00 AM (simulating 9:00 AM / Hour 9)...")
+    morning_closed_try = client.post("/meals/tomorrow?simulated_hour=9", json={
+        "breakfast": True,
+        "dinner": True
+    }, headers=alice_headers)
+    assert morning_closed_try.status_code == 400, f"Expected HTTP 400 before 10 AM, got {morning_closed_try.status_code}"
+    print(f" -> SUCCESS: Submission rejected before 10 AM (HTTP 400)! Response: {morning_closed_try.json()['detail']}")
+
+    print("\n[7b] Testing 10 PM cutoff enforcement (simulating 10:00 PM / Hour 22)...")
     cutoff_try = client.post("/meals/tomorrow?simulated_hour=22", json={
         "breakfast": False,
         "dinner": False

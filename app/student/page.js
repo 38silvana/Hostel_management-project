@@ -24,7 +24,8 @@ export default function StudentPage() {
   // Time window status (Asia/Kolkata)
   const [windowStatus, setWindowStatus] = useState({
     isOpen: true,
-    message: `Meal selection is OPEN until ${FOOD_WINDOW_CONFIG.CUTOFF_LABEL} (Window: ${FOOD_WINDOW_CONFIG.WINDOW_LABEL})`,
+    message: `Food selection is open from ${FOOD_WINDOW_CONFIG.WINDOW_LABEL}`,
+    startLabel: FOOD_WINDOW_CONFIG.START_LABEL,
     cutoffLabel: FOOD_WINDOW_CONFIG.CUTOFF_LABEL,
     windowLabel: FOOD_WINDOW_CONFIG.WINDOW_LABEL,
   });
@@ -131,7 +132,7 @@ export default function StudentPage() {
                   {windowStatus.isOpen
                     ? `Selection Open (Cutoff: ${windowStatus.cutoffLabel || '10:00 PM'})`
                     : windowStatus.status === 'before_window'
-                    ? `Selection Closed (Opens at ${windowStatus.startLabel || '5:00 PM'})`
+                    ? `Selection Closed (Opens at ${windowStatus.startLabel || '10:00 AM'})`
                     : `Selection Closed (Cutoff: ${windowStatus.cutoffLabel || '10:00 PM'})`}
                 </div>
               </div>
@@ -154,7 +155,7 @@ export default function StudentPage() {
                 >
                   <Info className="alert-icon" style={{ color: '#16a34a' }} />
                   <span>
-                    <strong>Food Selection Open:</strong> You can choose Breakfast and Dinner until {windowStatus.cutoffLabel || '10:00 PM'} today (Evening window: {windowStatus.windowLabel || '5:00 PM to 10:00 PM'}).
+                    <strong>Food Selection Open:</strong> Food selection is open from 10:00 AM to 10:00 PM.
                   </span>
                 </div>
               ) : (
@@ -406,7 +407,7 @@ export default function StudentPage() {
                         ? 'Saving Preferences...'
                         : !windowStatus.isOpen
                         ? windowStatus.status === 'before_window'
-                          ? `Selection Closed (Opens at ${windowStatus.startLabel || '5:00 PM'})`
+                          ? `Selection Closed (Opens at ${windowStatus.startLabel || '10:00 AM'})`
                           : `Selection Locked (${windowStatus.cutoffLabel || '10:00 PM'} Cutoff Passed)`
                         : 'Save Meal Preference'}
                     </button>

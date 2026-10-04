@@ -19,14 +19,20 @@ from app.security import (
 
 router = APIRouter(prefix="/meals", tags=["Meal Management"])
 
+START_HOUR = 10   # 10:00 AM local server time
 CUTOFF_HOUR = 22  # 10:00 PM local server time
 
-def check_10pm_cutoff(simulated_current_time: Optional[datetime] = None):
+def check_food_window(simulated_current_time: Optional[datetime] = None):
     """
-    Check if the current time has passed the 10:00 PM cutoff for selecting tomorrow's meals.
-    Raises HTTP 400 Bad Request if hour >= 22.
+    Check if the current time is within 10:00 AM to 10:00 PM window for selecting tomorrow's meals.
+    Raises HTTP 400 Bad Request if before 10:00 AM or hour >= 22.
     """
     now = simulated_current_time or datetime.now()
+    if now.hour < START_HOUR:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Food selection is currently closed. It will open at 10:00 AM. Current time: {now.strftime('%H:%M:%S')}"
+        )
     if now.hour >= CUTOFF_HOUR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -36,13 +42,13 @@ def check_10pm_cutoff(simulated_current_time: Optional[datetime] = None):
 @router.post("/tomorrow", response_model=MealSelectionResponse)
 def select_or_update_tomorrow_meals(
     payload: MealSelectionCreateUpdate,
-    simulated_hour: Optional[int] = Query(None, description="Optional parameter to simulate server hour for testing cutoff"),
+    simulated_hour: Optional[int] = Query(None, description="Optional parameter to simulate server hour for testing window"),
     current_student_user: User = Depends(require_student),
     db: Session = Depends(get_db)
 ):
     """
     Student-only endpoint to select or update tomorrow's breakfast & dinner choices.
-    Allows multiple modifications before 10:00 PM. Rejects after 10:00 PM.
+    Allows modifications between 10:00 AM and 10:00 PM. Rejects outside window.
     """
     # Verify student profile exists
     student_profile = db.query(StudentProfile).filter(StudentProfile.user_id == current_student_user.id).first()
@@ -52,15 +58,20 @@ def select_or_update_tomorrow_meals(
             detail="Student profile not found"
         )
 
-    # 10 PM Cutoff Verification
+    # Food Window Verification (10:00 AM to 10:00 PM)
     if simulated_hour is not None:
+        if simulated_hour < START_HOUR:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Food selection is currently closed. It will open at 10:00 AM. (Simulated Hour: {simulated_hour}:00)"
+            )
         if simulated_hour >= CUTOFF_HOUR:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"The 10:00 PM cutoff time has passed for selecting tomorrow's meals. (Simulated Hour: {simulated_hour}:00)"
             )
     else:
-        check_10pm_cutoff()
+        check_food_window()
 
     tomorrow = date.today() + timedelta(days=1)
 

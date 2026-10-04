@@ -34,20 +34,35 @@ export async function GET(request) {
     // 3. Combine records
     const formatted = (profiles || []).map((p) => {
       const authUser = authUsersMap.get(p.user_id);
-      const approvalStatus = authUser?.user_metadata?.approval_status || 'pending';
+      const meta = authUser?.user_metadata || {};
+      const approvalStatus = meta.approval_status || 'pending';
       const email = authUser?.email || '';
 
       return {
         id: p.id,
         user_id: p.user_id,
-        full_name: p.full_name,
-        room_number: p.room_number,
-        personal_contact: p.personal_contact || authUser?.user_metadata?.mobile || '',
-        emergency_contact: p.emergency_contact || '',
-        permanent_address: p.permanent_address || '',
+        full_name: p.full_name || meta.full_name || '',
+        room_number: p.room_number || meta.room_number || '',
+        personal_contact: p.personal_contact || meta.mobile || '',
+        emergency_contact: p.emergency_contact || meta.emergency_contact || '',
+        permanent_address: p.permanent_address || meta.permanent_address || '',
         fee_status: p.fee_status || 'pending',
         approval_status: approvalStatus,
-        profile_photo: p.profile_photo_url || null,
+        profile_photo: p.profile_photo_url || meta.profile_photo_url || null,
+        profile_photo_url: p.profile_photo_url || meta.profile_photo_url || null,
+        age: p.age ?? meta.age ?? null,
+        date_of_birth: p.date_of_birth || meta.date_of_birth || '',
+        programme_of_study: p.programme_of_study || meta.programme_of_study || '',
+        institute: p.institute || meta.institute || '',
+        firm_details: p.firm_details || meta.firm_details || '',
+        parent_guardian_name: p.parent_guardian_name || meta.parent_guardian_name || '',
+        relationship: p.relationship || meta.relationship || '',
+        occupation: p.occupation || meta.occupation || '',
+        parent_contact: p.parent_contact || meta.parent_contact || '',
+        parent_address: p.parent_address || meta.parent_address || '',
+        vehicle_usage: p.vehicle_usage || meta.vehicle_usage || 'No',
+        date_of_admission: p.date_of_admission || meta.date_of_admission || '',
+        declaration_accepted: p.declaration_accepted ?? meta.declaration_accepted ?? true,
         email,
         created_at: p.created_at,
       };

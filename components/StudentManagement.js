@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
-import { Search, UserPlus, Edit, Trash2, Home, CheckCircle, AlertCircle, Phone, Clock, UserCheck, Shield } from 'lucide-react';
+import { Search, UserPlus, Edit, Trash2, Home, CheckCircle, AlertCircle, Phone, Clock, UserCheck, Shield, FileText, Eye, User, Calendar, MapPin, Briefcase, GraduationCap, Users, X, Car } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function StudentManagement() {
@@ -16,6 +16,7 @@ export default function StudentManagement() {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -57,12 +58,20 @@ export default function StudentManagement() {
         method: 'POST',
       });
       setSuccess(res.message || `Resident "${student.full_name}" has been approved!`);
+      if (selectedStudent && selectedStudent.id === student.id) {
+        setSelectedStudent({ ...selectedStudent, approval_status: 'approved' });
+      }
       fetchStudents();
     } catch (err) {
       setError(err.message || 'Failed to approve resident.');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const openDetailModal = (student) => {
+    setSelectedStudent(student);
+    setShowDetailModal(true);
   };
 
   const handleCreate = async (e) => {
@@ -281,14 +290,28 @@ export default function StudentManagement() {
                     >
                       <td>
                         <div className="user-cell">
-                          <div
-                            className="cell-avatar-placeholder"
-                            style={{
-                              background: s.approval_status === 'pending' ? '#f59e0b' : '#4f46e5',
-                            }}
-                          >
-                            {s.full_name ? s.full_name[0].toUpperCase() : 'R'}
-                          </div>
+                          {s.profile_photo_url || s.profile_photo ? (
+                            <img
+                              src={s.profile_photo_url || s.profile_photo}
+                              alt={s.full_name}
+                              style={{
+                                width: '38px',
+                                height: '38px',
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: '1.5px solid #c7d2fe',
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className="cell-avatar-placeholder"
+                              style={{
+                                background: s.approval_status === 'pending' ? '#f59e0b' : '#4f46e5',
+                              }}
+                            >
+                              {s.full_name ? s.full_name[0].toUpperCase() : 'R'}
+                            </div>
+                          )}
                           <div>
                             <span className="font-semibold block">{s.full_name}</span>
                             <span className="text-xs text-muted">ID #{s.id}</span>
@@ -339,6 +362,20 @@ export default function StudentManagement() {
                       </td>
                       <td>
                         <div className="action-buttons" style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            className="btn-secondary"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '13px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title="View Full Admission Application"
+                            onClick={() => openDetailModal(s)}
+                          >
+                            <FileText className="icon-xs" /> View
+                          </button>
                           {s.approval_status === 'pending' && (
                             <button
                               className="btn-primary"
@@ -466,6 +503,13 @@ export default function StudentManagement() {
                   )}
 
                   <div className="mobile-card-actions">
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '13px', flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                      onClick={() => openDetailModal(s)}
+                    >
+                      <FileText className="icon-xs" /> View
+                    </button>
                     {s.approval_status === 'pending' && (
                       <button
                         className="btn-primary"
@@ -482,7 +526,7 @@ export default function StudentManagement() {
                     )}
                     <button
                       className="btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '13px', flex: 1 }}
+                      style={{ padding: '6px 12px', fontSize: '13px' }}
                       onClick={() => openEditModal(s)}
                     >
                       <Edit className="icon-xs" /> Edit
@@ -655,6 +699,233 @@ export default function StudentManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Admission Details Modal */}
+      {showDetailModal && selectedStudent && (
+        <div className="modal-overlay">
+          <div className="admission-modal-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>
+                  HOSTEL ADMISSION APPLICATION DETAILS
+                </h3>
+                <span className="text-xs text-muted">
+                  Resident Record #{selectedStudent.id} • Registered on {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => setShowDetailModal(false)}
+                title="Close"
+              >
+                <X className="icon-sm" />
+              </button>
+            </div>
+
+            {/* Profile Header Card */}
+            <div className="admission-modal-profile-header">
+              {selectedStudent.profile_photo_url || selectedStudent.profile_photo ? (
+                <img
+                  src={selectedStudent.profile_photo_url || selectedStudent.profile_photo}
+                  alt={selectedStudent.full_name}
+                  className="admission-modal-photo"
+                />
+              ) : (
+                <div
+                  className="cell-avatar-placeholder"
+                  style={{
+                    width: '88px',
+                    height: '88px',
+                    fontSize: '32px',
+                    background: selectedStudent.approval_status === 'pending' ? '#f59e0b' : '#4f46e5',
+                    borderRadius: '50%',
+                  }}
+                >
+                  {selectedStudent.full_name ? selectedStudent.full_name[0].toUpperCase() : 'R'}
+                </div>
+              )}
+
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>{selectedStudent.full_name}</h2>
+                  <span className="badge badge-outline">Room {selectedStudent.room_number || 'N/A'}</span>
+                  {selectedStudent.approval_status === 'pending' ? (
+                    <span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                      <Clock className="icon-xs inline mr-1" /> PENDING APPROVAL
+                    </span>
+                  ) : (
+                    <span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
+                      <CheckCircle className="icon-xs inline mr-1" /> APPROVED
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ marginTop: '6px', fontSize: '13px', color: '#64748b', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <span>📱 Mobile: <strong>{selectedStudent.personal_contact || 'N/A'}</strong></span>
+                  {selectedStudent.email && <span>✉️ Email: {selectedStudent.email}</span>}
+                </div>
+              </div>
+
+              {selectedStudent.approval_status === 'pending' && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => handleApprove(selectedStudent)}
+                  disabled={actionLoading}
+                >
+                  <CheckCircle className="icon-sm" /> Approve Application
+                </button>
+              )}
+            </div>
+
+            {/* Section A: Applicant Details */}
+            <div className="admission-section">
+              <div className="admission-section-header">
+                <User className="admission-section-icon" />
+                <h4 className="admission-section-title">A. Applicant Details</h4>
+              </div>
+              <div className="admission-info-grid">
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Full Name</span>
+                  <span className="admission-info-val">{selectedStudent.full_name || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Mobile Number (Login ID)</span>
+                  <span className="admission-info-val">{selectedStudent.personal_contact || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Age</span>
+                  <span className="admission-info-val">{selectedStudent.age ? `${selectedStudent.age} years` : 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Date of Birth</span>
+                  <span className="admission-info-val">{selectedStudent.date_of_birth || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item" style={{ gridColumn: '1 / -1' }}>
+                  <span className="admission-info-label">Permanent Address</span>
+                  <span className="admission-info-val">{selectedStudent.permanent_address || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section B: Study / Work Details */}
+            <div className="admission-section">
+              <div className="admission-section-header">
+                <GraduationCap className="admission-section-icon" />
+                <h4 className="admission-section-title">B. Study / Work Details</h4>
+              </div>
+              <div className="admission-info-grid">
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Programme of Study</span>
+                  <span className="admission-info-val">{selectedStudent.programme_of_study || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Name of Institute</span>
+                  <span className="admission-info-val">{selectedStudent.institute || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item" style={{ gridColumn: '1 / -1' }}>
+                  <span className="admission-info-label">Firm / Workplace Details (if working)</span>
+                  <span className="admission-info-val">{selectedStudent.firm_details || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section C: Parent / Guardian Details */}
+            <div className="admission-section">
+              <div className="admission-section-header">
+                <Users className="admission-section-icon" />
+                <h4 className="admission-section-title">C. Parent / Guardian Details</h4>
+              </div>
+              <div className="admission-info-grid">
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Parent / Guardian Name</span>
+                  <span className="admission-info-val">{selectedStudent.parent_guardian_name || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Relationship</span>
+                  <span className="admission-info-val">{selectedStudent.relationship || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Occupation</span>
+                  <span className="admission-info-val">{selectedStudent.occupation || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Contact Number</span>
+                  <span className="admission-info-val">{selectedStudent.parent_contact || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item" style={{ gridColumn: '1 / -1' }}>
+                  <span className="admission-info-label">Parent / Guardian Address</span>
+                  <span className="admission-info-val">{selectedStudent.parent_address || selectedStudent.permanent_address || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section D: Hostel Details */}
+            <div className="admission-section">
+              <div className="admission-section-header">
+                <Home className="admission-section-icon" />
+                <h4 className="admission-section-title">D. Hostel Details</h4>
+              </div>
+              <div className="admission-info-grid">
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Allocated Room Number</span>
+                  <span className="admission-info-val">Room {selectedStudent.room_number || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Date of Admission</span>
+                  <span className="admission-info-val">{selectedStudent.date_of_admission || (selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString() : 'N/A')}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Emergency Contact Number</span>
+                  <span className="admission-info-val">📞 {selectedStudent.emergency_contact || 'N/A'}</span>
+                </div>
+                <div className="admission-info-item">
+                  <span className="admission-info-label">Using Vehicle in Hostel</span>
+                  <span className="admission-info-val">
+                    <span className={`badge ${selectedStudent.vehicle_usage === 'Yes' ? 'badge-yes' : 'badge-outline'}`}>
+                      {selectedStudent.vehicle_usage === 'Yes' ? '🚗 Yes' : 'No'}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Declaration Status */}
+            <div className="declaration-container" style={{ margin: 0 }}>
+              <span className="declaration-badge">DECLARATION STATUS</span>
+              <p className="declaration-statement" style={{ margin: 0, fontSize: '13px' }}>
+                &ldquo;I do hereby declare that the information furnished above are true to my knowledge and I have gone through the rules of the hostel and I agree to obey them.&rdquo;
+              </p>
+              <div style={{ marginTop: '8px', fontSize: '13px', fontWeight: 600, color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle size={16} /> Agreed &amp; Accepted by applicant during submission
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="modal-actions" style={{ marginTop: '12px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowDetailModal(false);
+                  openEditModal(selectedStudent);
+                }}
+              >
+                <Edit className="icon-xs inline mr-1" /> Edit Details
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setShowDetailModal(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

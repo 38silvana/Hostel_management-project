@@ -49,9 +49,24 @@ export default function StudentProfile() {
       <div className="card profile-card">
         <div className="profile-header">
           <div className="avatar-large">
-            <div className="cell-avatar-placeholder" style={{ width: '64px', height: '64px', fontSize: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#4f46e5', color: '#fff' }}>
-              {profile.full_name ? profile.full_name[0].toUpperCase() : 'R'}
-            </div>
+            {profile.profile_photo_url || profile.profile_photo ? (
+              <img
+                src={profile.profile_photo_url || profile.profile_photo}
+                alt={profile.full_name}
+                style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2.5px solid #4f46e5',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                }}
+              />
+            ) : (
+              <div className="cell-avatar-placeholder" style={{ width: '64px', height: '64px', fontSize: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#4f46e5', color: '#fff' }}>
+                {profile.full_name ? profile.full_name[0].toUpperCase() : 'R'}
+              </div>
+            )}
           </div>
           <div className="profile-header-info">
             <h2 className="profile-name">{profile.full_name}</h2>
@@ -86,21 +101,42 @@ export default function StudentProfile() {
             </div>
           </div>
 
-          <div className="detail-item full-width">
-            <MapPin className="detail-icon" />
-            <div>
-              <span className="detail-label">Permanent Address</span>
-              <span className="detail-value">{profile.permanent_address || 'N/A'}</span>
-            </div>
-          </div>
-
           <div className="detail-item">
             <Calendar className="detail-icon" />
             <div>
               <span className="detail-label">Admission Date</span>
               <span className="detail-value">
-                {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
+                {profile.date_of_admission || (profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A')}
               </span>
+            </div>
+          </div>
+
+          {(profile.programme_of_study || profile.institute) && (
+            <div className="detail-item full-width">
+              <div>
+                <span className="detail-label">Programme &amp; Institute</span>
+                <span className="detail-value">
+                  {profile.programme_of_study ? `${profile.programme_of_study} ` : ''}
+                  {profile.institute ? `• ${profile.institute}` : ''}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {profile.firm_details && (
+            <div className="detail-item full-width">
+              <div>
+                <span className="detail-label">Work / Firm Details</span>
+                <span className="detail-value">{profile.firm_details}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="detail-item full-width">
+            <MapPin className="detail-icon" />
+            <div>
+              <span className="detail-label">Permanent Address</span>
+              <span className="detail-value">{profile.permanent_address || 'N/A'}</span>
             </div>
           </div>
         </div>
