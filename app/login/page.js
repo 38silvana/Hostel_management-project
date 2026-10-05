@@ -146,6 +146,7 @@ export default function LoginPage() {
     }
 
     setPhotoError(null);
+    setError(null);
     const localUrl = URL.createObjectURL(file);
     setPhotoPreview(localUrl);
 
@@ -190,6 +191,15 @@ export default function LoginPage() {
     setError(null);
 
     if (step === 1) {
+      if (photoUploading) {
+        setError('Please wait for your profile photo to finish uploading.');
+        return false;
+      }
+      if (!admissionData.profile_photo_url || !admissionData.profile_photo_url.trim()) {
+        setError('Profile photo is required.');
+        setPhotoError('Profile photo is required.');
+        return false;
+      }
       if (!admissionData.full_name || !admissionData.full_name.trim()) {
         setError('Please enter Name of the Applicant.');
         return false;
@@ -284,6 +294,14 @@ export default function LoginPage() {
     }
     if (!validateStep(3)) {
       setCurrentStep(3);
+      return;
+    }
+
+    // Safety check for Profile Photo
+    if (!admissionData.profile_photo_url || !admissionData.profile_photo_url.trim()) {
+      setError('Profile photo is required.');
+      setPhotoError('Profile photo is required.');
+      setCurrentStep(1);
       return;
     }
 
@@ -498,7 +516,9 @@ export default function LoginPage() {
 
                   {/* 1. Photo Upload */}
                   <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                    <label>Applicant Photo</label>
+                    <label>
+                      Profile Photo <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
                     <div className="photo-upload-container">
                       {photoPreview || admissionData.profile_photo_url ? (
                         <img

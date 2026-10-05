@@ -91,6 +91,14 @@ export async function POST(request) {
       );
     }
 
+    // Mandatory Profile Photo Check
+    if (!profile_photo_url || typeof profile_photo_url !== 'string' || !profile_photo_url.trim()) {
+      return NextResponse.json(
+        { error: 'Profile photo is required.' },
+        { status: 400 }
+      );
+    }
+
     const parsedAge = parseInt(age, 10);
     const internalEmail = normalizeIdentifierToEmail(cleanMobile);
 
@@ -114,7 +122,7 @@ export async function POST(request) {
       mobile: cleanMobile,
       full_name: full_name.trim(),
       room_number: room_number.trim(),
-      profile_photo_url: profile_photo_url || null,
+      profile_photo_url: profile_photo_url.trim(),
       age: parsedAge,
       date_of_birth: date_of_birth.trim(),
       permanent_address: permanent_address.trim(),
@@ -175,7 +183,7 @@ export async function POST(request) {
       permanent_address: permanent_address.trim(),
       emergency_contact: emergency_contact.trim(),
       fee_status: 'pending',
-      profile_photo_url: profile_photo_url || null,
+      profile_photo_url: profile_photo_url.trim(),
       age: parsedAge,
       date_of_birth: date_of_birth.trim(),
       programme_of_study: programme_of_study?.trim() || null,
@@ -206,7 +214,7 @@ export async function POST(request) {
         permanent_address: permanent_address.trim(),
         emergency_contact: emergency_contact.trim(),
         fee_status: 'pending',
-        profile_photo_url: profile_photo_url || null,
+        profile_photo_url: profile_photo_url.trim(),
       };
 
       const { error: fallbackError } = await supabaseAdmin
