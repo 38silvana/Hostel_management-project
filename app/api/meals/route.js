@@ -44,9 +44,11 @@ export async function GET(request) {
 
       if (!student) {
         return NextResponse.json({
-          breakfast: true,
-          dinner: true,
+          breakfast: false,
+          dinner: false,
           meal_date: dateParam,
+          is_new: true,
+          has_responded: false,
           windowStatus: isFoodWindowOpen(),
         });
       }
@@ -60,16 +62,19 @@ export async function GET(request) {
 
       if (!selection) {
         return NextResponse.json({
-          breakfast: true,
-          dinner: true,
+          breakfast: false,
+          dinner: false,
           meal_date: dateParam,
           is_new: true,
+          has_responded: false,
           windowStatus: isFoodWindowOpen(),
         });
       }
 
       return NextResponse.json({
         ...selection,
+        is_new: false,
+        has_responded: true,
         windowStatus: isFoodWindowOpen(),
       });
     }
@@ -111,13 +116,14 @@ export async function GET(request) {
 
     const sheet = (allStudents || []).map((student) => {
       const userSel = selectionMap.get(student.id);
-      // Default rule: If no selection saved, resident gets food (true / true)
-      const bChoice = userSel ? Boolean(userSel.breakfast) : true;
-      const dChoice = userSel ? Boolean(userSel.dinner) : true;
+      const hasResponded = Boolean(userSel);
+      // Opt-in (Default NO): If no selection saved, resident gets NO food (false / false)
+      const bChoice = hasResponded ? Boolean(userSel.breakfast) : false;
+      const dChoice = hasResponded ? Boolean(userSel.dinner) : false;
 
       if (bChoice) totalBreakfast++;
       if (dChoice) totalDinner++;
-      if (userSel) totalResponded++;
+      if (hasResponded) totalResponded++;
 
       return {
         student_id: student.id,
@@ -126,8 +132,8 @@ export async function GET(request) {
         personal_contact: student.personal_contact,
         breakfast: bChoice,
         dinner: dChoice,
-        has_responded: Boolean(userSel),
-        has_custom_choice: Boolean(userSel),
+        has_responded: hasResponded,
+        has_custom_choice: hasResponded,
         total_ticks: (bChoice ? 1 : 0) + (dChoice ? 1 : 0),
         updated_at: userSel?.updated_at || null,
       };

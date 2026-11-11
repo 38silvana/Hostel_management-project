@@ -13,8 +13,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 export default function StudentPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('meals'); // 'meals' | 'profile'
-  const [breakfast, setBreakfast] = useState(true);
-  const [dinner, setDinner] = useState(true);
+  const [breakfast, setBreakfast] = useState(false);
+  const [dinner, setDinner] = useState(false);
+  const [hasSavedSelection, setHasSavedSelection] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -63,16 +64,31 @@ export default function StudentPage() {
       setError(null);
       const data = await apiFetch(`/meals?mode=my-selection&user_id=${user.id}`);
       if (data) {
-        if (typeof data.breakfast === 'boolean') setBreakfast(data.breakfast);
-        if (typeof data.dinner === 'boolean') setDinner(data.dinner);
+        if (typeof data.breakfast === 'boolean') {
+          setBreakfast(data.breakfast);
+        } else {
+          setBreakfast(false);
+        }
+        if (typeof data.dinner === 'boolean') {
+          setDinner(data.dinner);
+        } else {
+          setDinner(false);
+        }
+        setHasSavedSelection(Boolean(data.has_responded && !data.is_new));
         if (data.windowStatus) {
           setWindowStatus(data.windowStatus);
         }
+      } else {
+        setBreakfast(false);
+        setDinner(false);
+        setHasSavedSelection(false);
       }
     } catch (err) {
-      // Default to opted-in (true/true) if no record exists
-      setBreakfast(true);
-      setDinner(true);
+      // Opt-in (Default NO): Network errors or missing data must default to false, never YES
+      setBreakfast(false);
+      setDinner(false);
+      setHasSavedSelection(false);
+      setError(err.message || 'Could not fetch saved meal selection.');
     } finally {
       setLoading(false);
     }
@@ -103,6 +119,7 @@ export default function StudentPage() {
           dinner,
         }),
       });
+      setHasSavedSelection(true);
       setSuccess(res.message || "Tomorrow's meal choices saved successfully!");
     } catch (err) {
       setError(err.message || 'Failed to save meal selection.');
@@ -199,11 +216,22 @@ export default function StudentPage() {
               ) : (
                 <div className="card" style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
                   <div className="card-header border-b pb-4 mb-6" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
-                    <h3 className="flex items-center gap-2" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '18px' }}>
-                      <Utensils className="text-primary" /> Tomorrow's Food Preference
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <h3 className="flex items-center gap-2" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '18px' }}>
+                        <Utensils className="text-primary" /> Tomorrow's Food Preference
+                      </h3>
+                      {hasSavedSelection ? (
+                        <span className="badge badge-yes" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Check className="icon-xs" /> Saved for Tomorrow
+                        </span>
+                      ) : (
+                        <span className="badge badge-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b' }}>
+                          Not Saved (Default: No Food)
+                        </span>
+                      )}
+                    </div>
                     <p className="text-muted text-sm mt-1" style={{ color: '#6b7280', fontSize: '13px', margin: '4px 0 0 0' }}>
-                      Mark Yes or No for each meal before {windowStatus.cutoffLabel || '10:00 PM'}.
+                      Hostel follows Opt-in: select Yes to take food. Mark choices and save before {windowStatus.cutoffLabel || '10:00 PM'}.
                     </p>
                   </div>
 

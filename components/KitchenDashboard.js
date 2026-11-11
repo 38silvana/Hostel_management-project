@@ -181,7 +181,8 @@ export default function KitchenDashboard() {
     if (sheetFilter === 'opted') return row.breakfast || row.dinner;
     if (sheetFilter === 'breakfast') return row.breakfast;
     if (sheetFilter === 'dinner') return row.dinner;
-    if (sheetFilter === 'skipped') return !row.breakfast && !row.dinner;
+    if (sheetFilter === 'skipped') return row.has_responded && !row.breakfast && !row.dinner;
+    if (sheetFilter === 'no_response') return !row.has_responded;
     return true;
   });
 
@@ -496,7 +497,13 @@ export default function KitchenDashboard() {
                 className={`date-chip-btn ${sheetFilter === 'skipped' ? 'active' : ''}`}
                 onClick={() => setSheetFilter('skipped')}
               >
-                Skipping All ({sheet.filter((r) => !r.breakfast && !r.dinner).length})
+                Opted Out ({sheet.filter((r) => r.has_responded && !r.breakfast && !r.dinner).length})
+              </button>
+              <button
+                className={`date-chip-btn ${sheetFilter === 'no_response' ? 'active' : ''}`}
+                onClick={() => setSheetFilter('no_response')}
+              >
+                No Response ({sheet.filter((r) => !r.has_responded).length})
               </button>
             </div>
 
@@ -537,7 +544,14 @@ export default function KitchenDashboard() {
                           </td>
                           <td className="text-sm text-muted">{row.personal_contact || 'N/A'}</td>
                           <td style={{ textAlign: 'center' }}>
-                            {row.breakfast ? (
+                            {!row.has_responded ? (
+                              <span
+                                className="badge badge-outline"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b' }}
+                              >
+                                No Response
+                              </span>
+                            ) : row.breakfast ? (
                               <span
                                 className="badge badge-yes"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
@@ -554,7 +568,14 @@ export default function KitchenDashboard() {
                             )}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            {row.dinner ? (
+                            {!row.has_responded ? (
+                              <span
+                                className="badge badge-outline"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b' }}
+                              >
+                                No Response
+                              </span>
+                            ) : row.dinner ? (
                               <span
                                 className="badge badge-yes"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
@@ -630,7 +651,14 @@ export default function KitchenDashboard() {
                         <div className="mobile-card-item">
                           <span className="mobile-card-label">Breakfast</span>
                           <div>
-                            {row.breakfast ? (
+                            {!row.has_responded ? (
+                              <span
+                                className="badge badge-outline"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b' }}
+                              >
+                                No Response
+                              </span>
+                            ) : row.breakfast ? (
                               <span
                                 className="badge badge-yes"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
@@ -651,7 +679,14 @@ export default function KitchenDashboard() {
                         <div className="mobile-card-item">
                           <span className="mobile-card-label">Dinner</span>
                           <div>
-                            {row.dinner ? (
+                            {!row.has_responded ? (
+                              <span
+                                className="badge badge-outline"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b' }}
+                              >
+                                No Response
+                              </span>
+                            ) : row.dinner ? (
                               <span
                                 className="badge badge-yes"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
