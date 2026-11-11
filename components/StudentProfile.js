@@ -13,15 +13,13 @@ export default function StudentProfile() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchProfile();
-    }
-  }, [user]);
+    fetchProfile();
+  }, []);
 
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch(`/students/me?user_id=${user.id}`);
+      const data = await apiFetch('/students/me');
       setProfile(data);
     } catch (err) {
       setError(err.message || 'Failed to load profile details.');

@@ -1,35 +1,48 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isFoodWindowOpen, getTomorrowDateIndia } from '@/lib/config';
+import { requireAdmin, requireResident } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode') || 'daily-sheet'; // 'daily-sheet' | 'my-selection' | 'window-status'
     const dateParam = searchParams.get('date') || getTomorrowDateIndia();
-    const userId = searchParams.get('user_id');
+    const queryUserId = searchParams.get('user_id');
 
-    // Return current window status if requested
+    // Return current window status if requested (Public info)
     if (mode === 'window-status') {
       return NextResponse.json(isFoodWindowOpen());
     }
 
-    // 1. My Selection (Resident)
+    // 1. My Selection (Resident - verified session)
     if (mode === 'my-selection') {
-      if (!userId) {
-        return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+      const auth = await requireResident(request);
+      if (auth.error) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
       }
 
-      // Find student profile by user_id
-      const { data: student, error: sErr } = await supabaseAdmin
-        .from('student_profiles')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
+      // If caller is admin, allow inspecting a specific user_id, otherwise enforce verified caller's ID
+      const targetUserId = (auth.isAdmin && queryUserId) ? queryUserId : auth.user.id;
 
-      if (sErr || !student) {
+      // Find student profile by targetUserId
+      const student = (targetUserId === auth.user.id && auth.studentProfile)
+        ? auth.studentProfile
+        : (await supabaseAdmin
+            .from('student_profiles')
+            .select('id')
+            .eq('user_id', targetUserId)
+            .maybeSingle())?.data;
+
+      if (!student) {
         return NextResponse.json({
           breakfast: true,
           dinner: true,
@@ -61,7 +74,12 @@ export async function GET(request) {
       });
     }
 
-    // 2. Admin Daily Tick Sheet & Aggregate Headcounts
+    // 2. Admin Daily Tick Sheet & Aggregate Headcounts (Admin only)
+    const authAdmin = await requireAdmin(request);
+    if (authAdmin.error) {
+      return NextResponse.json({ error: authAdmin.error }, { status: authAdmin.status });
+    }
+
     // Fetch all student profiles
     const { data: allStudents, error: stErr } = await supabaseAdmin
       .from('student_profiles')
@@ -92,38 +110,39 @@ export async function GET(request) {
     let totalResponded = 0;
 
     const sheet = (allStudents || []).map((student) => {
-      const sel = selectionMap.get(student.id);
-      const hasResponded = Boolean(sel);
-      const breakfast = sel ? Boolean(sel.breakfast) : false;
-      const dinner = sel ? Boolean(sel.dinner) : false;
+      const userSel = selectionMap.get(student.id);
+      // Default rule: If no selection saved, resident gets food (true / true)
+      const bChoice = userSel ? Boolean(userSel.breakfast) : true;
+      const dChoice = userSel ? Boolean(userSel.dinner) : true;
 
-      if (breakfast) totalBreakfast++;
-      if (dinner) totalDinner++;
-      if (hasResponded) totalResponded++;
-
-      const dailyTicks = (breakfast ? 1 : 0) + (dinner ? 1 : 0);
+      if (bChoice) totalBreakfast++;
+      if (dChoice) totalDinner++;
+      if (userSel) totalResponded++;
 
       return {
         student_id: student.id,
         full_name: student.full_name,
         room_number: student.room_number,
         personal_contact: student.personal_contact,
-        has_responded: hasResponded,
-        breakfast,
-        dinner,
-        total_ticks: dailyTicks,
-        updated_at: sel?.updated_at || sel?.created_at || null,
+        breakfast: bChoice,
+        dinner: dChoice,
+        has_responded: Boolean(userSel),
+        has_custom_choice: Boolean(userSel),
+        total_ticks: (bChoice ? 1 : 0) + (dChoice ? 1 : 0),
+        updated_at: userSel?.updated_at || null,
       };
     });
 
     return NextResponse.json({
       meal_date: dateParam,
-      total_students: (allStudents || []).length,
+      total_students: allStudents.length,
       total_breakfast_count: totalBreakfast,
       total_dinner_count: totalDinner,
+      total_responded: totalResponded,
       total_responded_count: totalResponded,
-      sheet,
+      total_defaulted: allStudents.length - totalResponded,
       windowStatus: isFoodWindowOpen(),
+      sheet,
     });
   } catch (err) {
     console.error('Unhandled exception in meals GET:', err);
@@ -133,15 +152,28 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
+
+    // Verify authenticated caller (Resident or Admin)
+    const auth = await requireResident(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await request.json();
     const { user_id, breakfast, dinner, bypass_cutoff } = body || {};
 
-    if (!user_id) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
+    // For residents, strictly use their authenticated user ID (never trust body.user_id)
+    const targetUserId = (auth.isAdmin && user_id) ? user_id : auth.user.id;
 
-    // Check cutoff window (Asia/Kolkata)
-    if (!bypass_cutoff) {
+    // Only Admins are permitted to bypass cutoff window; residents cannot bypass it
+    const canBypassCutoff = auth.isAdmin && Boolean(bypass_cutoff);
+    if (!canBypassCutoff) {
       const windowCheck = isFoodWindowOpen();
       if (!windowCheck.isOpen) {
         return NextResponse.json(
@@ -152,13 +184,15 @@ export async function POST(request) {
     }
 
     // Get student profile
-    const { data: student, error: sErr } = await supabaseAdmin
-      .from('student_profiles')
-      .select('id')
-      .eq('user_id', user_id)
-      .single();
+    const student = (targetUserId === auth.user.id && auth.studentProfile)
+      ? auth.studentProfile
+      : (await supabaseAdmin
+          .from('student_profiles')
+          .select('id')
+          .eq('user_id', targetUserId)
+          .maybeSingle())?.data;
 
-    if (sErr || !student) {
+    if (!student) {
       return NextResponse.json({ error: 'Student record not found for this account.' }, { status: 404 });
     }
 

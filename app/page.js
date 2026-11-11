@@ -14,8 +14,10 @@ export default function Home() {
       if (user) {
         if (String(user.role || '').trim().toLowerCase() === 'admin') {
           router.replace('/admin');
-        } else {
+        } else if (user.approval_status === 'approved') {
           router.replace('/student');
+        } else {
+          router.replace('/login');
         }
       } else {
         router.replace('/login');

@@ -1,45 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * Authenticates the request and verifies the caller has admin privileges.
- */
-async function authenticateAdmin(request) {
-  const authHeader = request.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
-
-  if (!token) {
-    return { error: 'Authentication required. Please log in as an administrator.', status: 401 };
-  }
-
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) {
-    return { error: 'Invalid or expired session. Please log in again.', status: 401 };
-  }
-
-  const metaRole = String(user.user_metadata?.role || '').toLowerCase();
-  let isAdmin = metaRole === 'admin';
-
-  if (!isAdmin) {
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (String(profile?.role || '').toLowerCase() === 'admin') {
-      isAdmin = true;
-    }
-  }
-
-  if (!isAdmin) {
-    return { error: 'Access forbidden: Administrator privileges required.', status: 403 };
-  }
-
-  return { user };
-}
 
 /**
  * GET /api/admin/whatsapp-number
@@ -47,7 +10,7 @@ async function authenticateAdmin(request) {
  */
 export async function GET(request) {
   try {
-    const auth = await authenticateAdmin(request);
+    const auth = await requireAdmin(request);
     if (auth.error) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -56,7 +19,7 @@ export async function GET(request) {
     let whatsappNumber = adminUser.user_metadata?.whatsapp_number || '';
 
     // If not on current admin user, fallback to any admin user who configured it
-    if (!whatsappNumber) {
+    if (!whatsappNumber && supabaseAdmin) {
       try {
         const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
         const adminWithPhone = (allUsers?.users || []).find(
@@ -87,9 +50,16 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
-    const auth = await authenticateAdmin(request);
+    const auth = await requireAdmin(request);
     if (auth.error) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
     }
 
     const adminUser = auth.user;

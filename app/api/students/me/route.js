@@ -1,30 +1,25 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireResident } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    // 1. Verify the authenticated session token from Authorization header
+    const auth = await requireResident(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const { data: student, error } = await supabaseAdmin
-      .from('student_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error || !student) {
+    // 2. Identify the resident strictly by the verified token user ID
+    const student = auth.studentProfile;
+    if (!student) {
       return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
-    const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(userId);
-    const meta = authUserData?.user?.user_metadata || {};
+    const meta = auth.user?.user_metadata || {};
 
+    // 3. Return verified resident profile fields
     return NextResponse.json({
       ...student,
       profile_photo_url: student.profile_photo_url || meta.profile_photo_url || null,

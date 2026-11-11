@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request, context) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const rawParams = await context?.params;
     let studentId = rawParams?.id ? parseInt(rawParams.id, 10) : null;
 
@@ -42,11 +54,16 @@ export async function POST(request, context) {
     }
 
     const currentMeta = authUserData.user.user_metadata || {};
+    const currentAppMeta = authUserData.user.app_metadata || {};
 
-    // 3. Update approval_status to 'approved'
+    // 3. Update approval_status to 'approved' in both app_metadata (security) and user_metadata (UI)
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       student.user_id,
       {
+        app_metadata: {
+          ...currentAppMeta,
+          approval_status: 'approved',
+        },
         user_metadata: {
           ...currentMeta,
           approval_status: 'approved',

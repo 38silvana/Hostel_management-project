@@ -6,6 +6,12 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const body = await request.json();
     const {
       // A. Applicant Details
@@ -103,14 +109,29 @@ export async function POST(request) {
     const internalEmail = normalizeIdentifierToEmail(cleanMobile);
 
     // 2. Check if an account with this mobile or internalEmail already exists
-    const { data: existingUserCheck } = await supabaseAdmin.auth.admin.listUsers();
-    const userAlreadyExists = existingUserCheck?.users?.some(
+    const { data: existingUserCheck } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const matchedExistingUser = existingUserCheck?.users?.find(
       (u) => u.email?.toLowerCase() === internalEmail.toLowerCase() || u.user_metadata?.mobile === cleanMobile
     );
 
-    if (userAlreadyExists) {
+    if (matchedExistingUser) {
+      const isPending =
+        matchedExistingUser.app_metadata?.approval_status !== 'approved';
+
+      if (isPending) {
+        return NextResponse.json(
+          {
+            error: 'An admission application with this mobile number has already been submitted and is currently PENDING approval by the Warden/Admin. Please wait for review or contact the Hostel Admin.',
+            isPending: true,
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
-        { error: 'A resident account with this mobile number already exists. Please log in or contact the Hostel Admin.' },
+        {
+          error: 'A resident account with this mobile number already exists. Please log in on the Sign In tab or contact the Hostel Admin.',
+        },
         { status: 400 }
       );
     }
@@ -144,6 +165,10 @@ export async function POST(request) {
       email: internalEmail,
       password: password,
       email_confirm: true,
+      app_metadata: {
+        role: 'student',
+        approval_status: 'pending',
+      },
       user_metadata: userMetadata,
     });
 
@@ -240,6 +265,7 @@ export async function POST(request) {
           id: userId,
           full_name: full_name.trim(),
           mobile: cleanMobile,
+          role: 'student',
           approval_status: 'pending',
         },
       },

@@ -420,7 +420,7 @@ export default function KitchenDashboard() {
                 <Users className="stat-icon text-muted" />
               </div>
               <div className="stat-value">
-                {data.total_responded_count} / {data.total_students}
+                {data.total_responded_count ?? data.total_responded ?? 0} / {data.total_students || 0}
               </div>
               <p className="stat-desc">Residents with recorded choices</p>
             </div>

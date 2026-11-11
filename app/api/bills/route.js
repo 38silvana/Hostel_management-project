@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { calculateMonthlyBill, BILLING_RATES } from '@/lib/config';
+import { requireAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const { searchParams } = new URL(request.url);
     const now = new Date();
     const year = parseInt(searchParams.get('year') || now.getFullYear(), 10);
@@ -125,6 +137,17 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const body = await request.json();
     const { year, month, action } = body || {}; // action: 'generate' | 'finalize'
 

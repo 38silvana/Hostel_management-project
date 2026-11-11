@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { normalizeIdentifierToEmail, extractCleanMobile } from '@/lib/auth-helpers';
+import { requireAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.toLowerCase() || '';
 
@@ -35,7 +47,8 @@ export async function GET(request) {
     const formatted = (profiles || []).map((p) => {
       const authUser = authUsersMap.get(p.user_id);
       const meta = authUser?.user_metadata || {};
-      const approvalStatus = meta.approval_status || 'pending';
+      const rawApproval = authUser?.app_metadata?.approval_status;
+      const approvalStatus = rawApproval === 'approved' ? 'approved' : 'pending';
       const email = authUser?.email || '';
 
       return {
@@ -88,6 +101,17 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const body = await request.json();
     const {
       full_name,
@@ -115,6 +139,10 @@ export async function POST(request) {
       email: internalEmail,
       password: initialPassword,
       email_confirm: true,
+      app_metadata: {
+        role: 'student',
+        approval_status: 'approved',
+      },
       user_metadata: {
         role: 'student',
         approval_status: 'approved',

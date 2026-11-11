@@ -20,6 +20,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     if (!loading) {
       if (!user) {
         router.replace('/login');
+      } else if (String(user.role || '').toLowerCase() !== 'admin' && user.approval_status !== 'approved') {
+        router.replace('/login');
       } else if (!isRoleAllowed(user.role)) {
         const isAdmin = String(user.role || '').trim().toLowerCase() === 'admin';
         router.replace(isAdmin ? '/admin' : '/student');
@@ -29,6 +31,14 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   if (loading || !user) {
     return <LoadingSpinner label="Authenticating session..." />;
+  }
+
+  if (String(user.role || '').toLowerCase() !== 'admin' && user.approval_status !== 'approved') {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner label="Account pending approval. Redirecting to login..." />
+      </div>
+    );
   }
 
   if (!isRoleAllowed(user.role)) {

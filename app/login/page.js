@@ -29,16 +29,22 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, signup, user, loading: authLoading } = useAuth();
+  const { login, signup, user, loading: authLoading, logout, clearSession } = useAuth();
   const fileInputRef = useRef(null);
 
-  // If user already has a persisted session, redirect directly to dashboard
+  // If user already has an approved persisted session, redirect directly to dashboard
   useEffect(() => {
     if (!authLoading && user) {
-      if (String(user?.role || '').toLowerCase() === 'admin') {
-        router.replace('/admin');
+      const isApproved = user.approval_status === 'approved';
+      if (isApproved) {
+        if (String(user?.role || '').toLowerCase() === 'admin') {
+          router.replace('/admin');
+        } else {
+          router.replace('/student');
+        }
       } else {
-        router.replace('/student');
+        // User has pending status: stay on login page and display pending notice
+        setIsPendingNotice(true);
       }
     }
   }, [user, authLoading, router]);
@@ -100,8 +106,9 @@ export default function LoginPage() {
     setPhotoError(null);
   };
 
-  // If session is authenticating or user is already verified, show redirect spinner
-  if (authLoading || user) {
+  // If session is authenticating or user is already verified and approved, show redirect spinner
+  const isApprovedSession = Boolean(user && user.approval_status === 'approved');
+  if (authLoading || isApprovedSession) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
         <LoadingSpinner label="Authenticating session..." />
@@ -325,6 +332,9 @@ export default function LoginPage() {
       setIsPendingNotice(true);
       setCurrentStep(1); // Reset to first step for future applications
     } catch (err) {
+      if (err.isPending) {
+        setIsPendingNotice(true);
+      }
       setError(err.message || 'Application submission failed. Please check your details.');
     } finally {
       setLoading(false);
@@ -364,11 +374,42 @@ export default function LoginPage() {
         </div>
 
         {isPendingNotice && (
-          <div className="alert alert-warning" style={{ background: '#fffbeb', border: '1px solid #fef3c7', color: '#92400e', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-            <Clock className="alert-icon inline mr-2 text-amber" />
-            <span>
-              <strong>Application Pending Approval:</strong> Your admission application has been submitted and is awaiting approval by the Shanthibavanam Warden/Admin. You will be able to log in once approved.
-            </span>
+          <div className="alert alert-warning" style={{ background: '#fffbeb', border: '1px solid #fef3c7', color: '#92400e', padding: '14px', borderRadius: '8px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <Clock className="alert-icon inline mr-2 text-amber" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ flex: 1 }}>
+                <div>
+                  <strong>Application Pending Approval:</strong> Your admission application has been submitted and is awaiting approval by the Shanthibavanam Warden/Admin. You will be able to log in once approved.
+                </div>
+                <div style={{ marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (clearSession) {
+                        await clearSession();
+                      } else if (logout) {
+                        await logout();
+                      }
+                      resetNotices();
+                      setLoginIdentifier('');
+                      setLoginPassword('');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#4f46e5',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      padding: 0,
+                      fontWeight: '500',
+                    }}
+                  >
+                    Clear saved session / Sign in with a different account &rarr;
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

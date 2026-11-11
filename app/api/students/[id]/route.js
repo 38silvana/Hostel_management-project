@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { extractCleanMobile, normalizeIdentifierToEmail } from '@/lib/auth-helpers';
+import { requireAdmin } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +16,17 @@ function extractStudentId(request, context) {
 
 export async function PUT(request, context) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const rawParams = await context?.params;
     const studentId = rawParams?.id ? parseInt(rawParams.id, 10) : extractStudentId(request, context);
 
@@ -51,11 +64,32 @@ export async function PUT(request, context) {
     }
 
     // Also update profile table full_name
-    if (updated?.user_id && full_name) {
-      await supabaseAdmin
-        .from('profiles')
-        .update({ full_name })
-        .eq('id', updated.user_id);
+    if (updated?.user_id) {
+      if (full_name) {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ full_name })
+          .eq('id', updated.user_id);
+      }
+
+      // Keep Auth user email and mobile metadata in sync if personal_contact was updated
+      if (personal_contact) {
+        const cleanMobile = extractCleanMobile(personal_contact);
+        if (cleanMobile && cleanMobile.length === 10) {
+          const newEmail = normalizeIdentifierToEmail(cleanMobile);
+          try {
+            await supabaseAdmin.auth.admin.updateUserById(updated.user_id, {
+              email: newEmail,
+              user_metadata: {
+                mobile: cleanMobile,
+                full_name: full_name || updated.full_name,
+              },
+            });
+          } catch (syncErr) {
+            console.warn('Could not sync Auth user email with updated mobile:', syncErr?.message);
+          }
+        }
+      }
     }
 
     return NextResponse.json(updated);
@@ -67,6 +101,17 @@ export async function PUT(request, context) {
 
 export async function DELETE(request, context) {
   try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase admin configuration is missing.' },
+        { status: 500 }
+      );
+    }
     const rawParams = await context?.params;
     const studentId = rawParams?.id ? parseInt(rawParams.id, 10) : extractStudentId(request, context);
 

@@ -70,9 +70,9 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
         <div className="navbar-user">
           <div className="user-info">
-            <span className="user-name">{user.full_name}</span>
-            <span className={`role-badge ${user.role}`}>
-              {user.role.toUpperCase()}
+            <span className="user-name">{user?.full_name || 'Resident'}</span>
+            <span className={`role-badge ${user?.role || 'student'}`}>
+              {String(user?.role || 'RESIDENT').toUpperCase()}
             </span>
           </div>
           <button className="btn-logout" onClick={logout} title="Logout">
